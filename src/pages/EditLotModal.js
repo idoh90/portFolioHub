@@ -45,8 +45,8 @@ const EditLotModal = ({ positionId, lot, onSave, onClose }) => {
             <input type="date" value={date} onChange={e => setDate(e.target.value)} required />
           </label>
           <div className="editlot-actions">
-            <button type="submit" className="save-btn">Save</button>
-            <button type="button" className="cancel-btn" onClick={onClose}>Cancel</button>
+            <button type="submit" className="save-btn modern-button">Save</button>
+            <button type="button" className="cancel-btn modern-button" onClick={onClose}>Cancel</button>
           </div>
         </form>
       </dialog>

@@ -370,7 +370,10 @@ const Hub = () => {
   return (
     <div className="hub-container" key={refreshKey}>
       <div className="hub-padding-top" />
-      <button className="logout-btn" onClick={handleLogout} title="Logout">⎋</button>
+      <div className="hub-logo-container">
+        <img src="/logo.png" alt="App Logo" className="hub-logo" />
+      </div>
+      <button className="logout-btn modern-button" onClick={handleLogout} title="Logout">⎋</button>
       <div className="financial-summary-vertical">
         <div className="total-value-block">
           <div className="summary-label">Total Value</div>
@@ -392,12 +395,12 @@ const Hub = () => {
         </div>
       </div>
       <div className="welcome-message">Welcome, {user}</div>
-      <button className="mystocks-btn" onClick={() => navigate('/mystocks')}>My Stocks</button>
+      <button className="mystocks-btn modern-button" onClick={() => navigate('/mystocks')}>My Stocks</button>
       <FriendsPortfolios friends={filteredFriends} />
       <main className="hub-main">
         {/* Dashboard content goes here */}
         <h1>Hub Dashboard</h1>
-        <p>This is your mobile-first, scrollable dashboard. Add widgets and content here.</p>
+        <p>ברוכים הבאים מגיז, זהו אתר לדוגמה כדי לתת לנו לאונן אחד לשני תוך כדי שאנחנו רואים מה ההשקעות של כל אחד ולהתחרות בצורה ידידותית אחד בשני. אוהב אתכם המון המון</p>
       </main>
     </div>
   );

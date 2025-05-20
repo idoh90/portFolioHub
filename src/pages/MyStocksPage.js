@@ -62,7 +62,7 @@ const PositionModal = ({ position, onClose, onDeletePosition }) => {
         <div className="modal-header">
           <span className="modal-ticker">{latestPosition.ticker}</span>
           <span className="modal-actions">
-            <button className="modal-delete" onClick={() => { onDeletePosition(latestPosition.id); onClose(); }}>🗑</button>
+            <button className="modal-delete modern-button" onClick={() => { onDeletePosition(latestPosition.id); onClose(); }}>🗑</button>
           </span>
         </div>
         <div className="modal-stats">
@@ -88,15 +88,15 @@ const PositionModal = ({ position, onClose, onDeletePosition }) => {
                 <td>{lot.shares}</td>
                 <td>${Number(lot.price).toFixed(2)}</td>
                 <td>${(Number(lot.shares) * Number(lot.price)).toFixed(2)}</td>
-                <td><button className="lot-edit" onClick={() => setEditLot(lot)}>✎</button></td>
-                <td><button className="lot-delete" onClick={() => handleDeleteLot(lot.id)}>🗑</button></td>
+                <td><button className="lot-edit modern-button" onClick={() => setEditLot(lot)}>✎</button></td>
+                <td><button className="lot-delete modern-button" onClick={() => handleDeleteLot(lot.id)}>🗑</button></td>
               </tr>
             ))}
           </tbody>
         </table>
         <div className="modal-footer">
-          <button className="add-lot-btn" onClick={() => setEditLot({})}>Add lot</button>
-          <button className="close-modal-btn" onClick={onClose}>Close</button>
+          <button className="add-lot-btn modern-button" onClick={() => setEditLot({})}>Add lot</button>
+          <button className="close-modal-btn modern-button" onClick={onClose}>Close</button>
         </div>
         {editLot !== null && (
           <EditLotModal
@@ -157,7 +157,7 @@ const MyStocksPage = () => {
 
   return (
     <div className="mystocks-container">
-      <button className="back-btn" onClick={() => navigate('/hub')} title="Back">←</button>
+      <button className="back-btn modern-button" onClick={() => navigate('/hub')} title="Back">←</button>
       <h1 className="mystocks-title">My Stocks</h1>
       {positions.length === 0 ? (
         <div className="zero-state-card">No positions yet • Add your first stock</div>
@@ -168,7 +168,7 @@ const MyStocksPage = () => {
           ))}
         </div>
       )}
-      <button className="floating-add-btn" onClick={() => navigate('/new-position')} disabled={!canAdd}>＋</button>
+      <button className="floating-add-btn modern-button" onClick={() => navigate('/new-position')} disabled={!canAdd}>＋</button>
       {!canAdd && <div className="max-stocks-warning">You can only track up to 5 stocks at a time.</div>}
       {modalPosition && <PositionModal position={modalPosition} onClose={() => setModalPosition(null)} onDeletePosition={deletePosition} />}
     </div>

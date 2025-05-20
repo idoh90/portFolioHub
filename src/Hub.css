@@ -155,6 +155,11 @@
     font-size: 1.1rem;
     padding: 0.1em 0.2em;
   }
+  .hub-logo {
+    width: 48px;
+    max-width: 18vw;
+    display: block;
+  }
 }
 
 .newsfeed-container {
@@ -375,4 +380,26 @@
   flex-direction: row;
   gap: 0.7rem;
   align-items: center;
+}
+
+.hub-logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1.2rem;
+}
+
+.hub-logo {
+  width: 70px;
+  height: auto;
+  max-width: 30vw;
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .hub-logo {
+    width: 48px;
+    max-width: 18vw;
+    display: block;
+  }
 } 

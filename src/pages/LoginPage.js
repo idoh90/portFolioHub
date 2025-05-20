@@ -29,6 +29,9 @@ const LoginPage = () => {
 
   return (
     <div className="login-bg">
+      <div className="login-logo-container">
+        <img src="/logo.png" alt="App Logo" className="login-logo" />
+      </div>
       <form className="login-card" ref={cardRef} onSubmit={handleSubmit}>
         <h2 className="login-title">Sign In</h2>
         <input
@@ -39,7 +42,7 @@ const LoginPage = () => {
           onChange={e => { setPassword(e.target.value); setError(false); }}
           autoFocus
         />
-        <button className="login-btn" type="submit">Enter</button>
+        <button className="login-btn modern-button" type="submit">Enter</button>
         {error && <div className="login-error">Invalid password</div>}
       </form>
     </div>

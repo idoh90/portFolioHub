@@ -44,8 +44,8 @@ const NewPositionPage = () => {
           <input type="date" value={date} onChange={e => setDate(e.target.value)} required />
         </label>
         <div className="newposition-actions">
-          <button className="add-position-btn" type="submit">Add Position</button>
-          <button className="cancel-position-btn" type="button" onClick={() => navigate(-1)}>Cancel</button>
+          <button className="add-position-btn modern-button" type="submit">Add Position</button>
+          <button className="cancel-position-btn modern-button" type="button" onClick={() => navigate(-1)}>Cancel</button>
         </div>
       </form>
     </div>
