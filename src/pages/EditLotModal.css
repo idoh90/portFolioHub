@@ -1,0 +1,72 @@
+.editlot-modal {
+  min-width: 320px;
+  max-width: 95vw;
+  background: #23272f;
+  border-radius: 1.2rem;
+  border: none;
+  box-shadow: 0 4px 32px #000a;
+  padding: 2rem 2rem 1.5rem 2rem;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  position: relative;
+}
+.editlot-modal h2 {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #ffd166;
+  margin-bottom: 1.2rem;
+}
+.editlot-modal label {
+  display: flex;
+  flex-direction: column;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #b0b8c1;
+  margin-bottom: 0.7rem;
+}
+.editlot-modal input[type="number"],
+.editlot-modal input[type="date"] {
+  margin-top: 0.3rem;
+  padding: 0.6em 1em;
+  border-radius: 0.7em;
+  border: none;
+  background: #181818;
+  color: #fff;
+  font-size: 1.08rem;
+  margin-bottom: 0.2rem;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: box-shadow 0.15s;
+}
+.editlot-modal input:focus {
+  box-shadow: 0 2px 8px #2ee59d44;
+}
+.editlot-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.2rem;
+}
+.save-btn, .cancel-btn {
+  padding: 0.7em 1.2em;
+  border-radius: 0.7em;
+  border: none;
+  font-size: 1.08rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: linear-gradient(90deg, #2ee59d 0%, #ffd166 100%);
+  color: #181818;
+  transition: background 0.18s, color 0.18s;
+}
+.save-btn:hover, .cancel-btn:hover {
+  background: linear-gradient(90deg, #ffd166 0%, #2ee59d 100%);
+  color: #23272f;
+}
+@media (max-width: 600px) {
+  .editlot-modal {
+    min-width: 90vw;
+    padding: 1.2rem 0.5rem 1rem 0.5rem;
+  }
+} 

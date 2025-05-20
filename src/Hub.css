@@ -1,0 +1,348 @@
+.hub-container {
+  min-height: 100vh;
+  background: #181818;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.hub-padding-top {
+  height: 64px; /* Space for sticky header */
+}
+
+.hub-main {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 600px) {
+  .hub-main {
+    max-width: 600px;
+  }
+}
+
+.financial-summary {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin: 0 auto 1.5rem auto;
+  width: 100%;
+  max-width: 480px;
+}
+
+.financial-summary-vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto 1.5rem auto;
+  width: 100%;
+  max-width: 480px;
+}
+
+.total-value-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.total-value {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.01em;
+  margin-top: 0.1rem;
+  margin-bottom: 0.1rem;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.18);
+}
+
+.summary-row {
+  display: flex;
+  flex-direction: row;
+  gap: 1.25rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.summary-block {
+  background: #23272f;
+  border-radius: 1rem;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 90px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+
+.summary-label {
+  font-size: 0.85rem;
+  color: #b0b8c1;
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.02em;
+}
+
+.summary-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin-bottom: 0.1rem;
+}
+
+.bold {
+  font-weight: 900;
+}
+
+.pos {
+  color: #2ee59d;
+}
+
+.neg {
+  color: #ff5c5c;
+}
+
+@media (max-width: 480px) {
+  .financial-summary {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .summary-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .summary-block {
+    min-width: 70vw;
+    width: 100%;
+  }
+  .total-value {
+    font-size: 2.1rem;
+  }
+}
+
+.newsfeed-container {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 1.5rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px; /* for scrollbar space */
+  scroll-behavior: smooth;
+}
+
+.news-card {
+  display: flex;
+  flex-direction: column;
+  background: #23272f;
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  text-decoration: none;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  transition: background 0.18s, box-shadow 0.18s, transform 0.12s;
+  cursor: pointer;
+  outline: none;
+}
+
+.news-card:active, .news-card:focus, .news-card:hover {
+  background: #282c34;
+  box-shadow: 0 4px 16px rgba(46,229,157,0.10);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.news-headline {
+  font-size: 1.08rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.news-source {
+  font-size: 0.92rem;
+  color: #b0b8c1;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+@media (max-width: 480px) {
+  .newsfeed-container {
+    max-width: 100vw;
+    max-height: 180px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .news-card {
+    padding: 0.85rem 1rem;
+  }
+}
+
+.friends-grid {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 1.5rem auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.friend-card {
+  background: #23272f;
+  border-radius: 1.1rem;
+  padding: 1rem 1.1rem 0.8rem 1.1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  min-height: 120px;
+  transition: box-shadow 0.18s, transform 0.12s;
+}
+
+.friend-card:hover, .friend-card:focus {
+  box-shadow: 0 4px 16px rgba(46,229,157,0.10);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.friend-name {
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 0.2rem;
+}
+
+.friend-portfolio-value {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #2ee59d;
+  margin-bottom: 0.5rem;
+}
+
+.friend-positions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  width: 100%;
+}
+
+.friend-position {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.98rem;
+  color: #b0b8c1;
+  font-weight: 500;
+}
+
+.ticker {
+  font-weight: 700;
+  color: #fff;
+}
+
+.percent {
+  color: #ffd166;
+  font-weight: 700;
+}
+
+.avg-buy {
+  font-size: 0.93rem;
+  color: #7de2fc;
+  font-weight: 600;
+  margin: 0 0.4em 0 0.4em;
+  opacity: 0.85;
+}
+
+@media (max-width: 600px) {
+  .friends-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+    max-width: 100vw;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .friend-card {
+    padding: 0.85rem 1rem 0.7rem 1rem;
+  }
+}
+
+.logout-btn {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: none;
+  border: none;
+  color: #b0b8c1;
+  font-size: 1.35rem;
+  cursor: pointer;
+  z-index: 10;
+  padding: 0.2em 0.4em;
+  border-radius: 0.5em;
+  transition: background 0.15s, color 0.15s;
+}
+.logout-btn:hover, .logout-btn:focus {
+  background: #23272f;
+  color: #ff5c5c;
+}
+
+.welcome-message {
+  width: 100%;
+  max-width: 480px;
+  margin: 0.7rem auto 1.1rem auto;
+  text-align: left;
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 0.01em;
+  padding-left: 0.2rem;
+  background: #23272f;
+  border-radius: 0.7rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  padding: 0.7rem 1.1rem 0.7rem 1.1rem;
+  margin-bottom: 1.2rem;
+  border-left: 4px solid #ffd166;
+  display: flex;
+  align-items: center;
+}
+
+.mystocks-btn {
+  display: block;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto 1.1rem auto;
+  padding: 0.85rem 1rem;
+  background: linear-gradient(90deg, #2ee59d 0%, #ffd166 100%);
+  color: #181818;
+  font-size: 1.08rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 0.7rem;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: background 0.18s, color 0.18s, box-shadow 0.15s;
+  letter-spacing: 0.01em;
+}
+.mystocks-btn:hover, .mystocks-btn:focus {
+  background: linear-gradient(90deg, #ffd166 0%, #2ee59d 100%);
+  color: #23272f;
+  box-shadow: 0 2px 8px #2ee59d44;
+}
+
+.friend-biggest-stock {
+  margin-top: 0.5rem;
+  font-size: 0.98rem;
+  color: #ffd166;
+  font-weight: 700;
+  display: flex;
+  flex-direction: row;
+  gap: 0.7rem;
+  align-items: center;
+} 

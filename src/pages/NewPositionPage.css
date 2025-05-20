@@ -1,0 +1,90 @@
+.newposition-container {
+  min-height: 100vh;
+  background: #181818;
+  color: #fff;
+  padding: 2.2rem 0.5rem 1.5rem 0.5rem;
+  max-width: 400px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.newposition-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.01em;
+  color: #ffd166;
+  text-align: left;
+  padding-left: 0.2rem;
+}
+
+.newposition-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.newposition-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #b0b8c1;
+}
+
+.newposition-form input[type="text"],
+.newposition-form input[type="number"],
+.newposition-form input[type="date"] {
+  margin-top: 0.3rem;
+  padding: 0.6em 1em;
+  border-radius: 0.7em;
+  border: none;
+  background: #23272f;
+  color: #fff;
+  font-size: 1.08rem;
+  margin-bottom: 0.2rem;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: box-shadow 0.15s;
+}
+.newposition-form input:focus {
+  box-shadow: 0 2px 8px #2ee59d44;
+}
+.add-position-btn {
+  padding: 0.7em 1.2em;
+  border-radius: 0.7em;
+  border: none;
+  font-size: 1.08rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: linear-gradient(90deg, #2ee59d 0%, #ffd166 100%);
+  color: #181818;
+  transition: background 0.18s, color 0.18s;
+}
+.add-position-btn:hover {
+  background: linear-gradient(90deg, #ffd166 0%, #2ee59d 100%);
+  color: #23272f;
+}
+
+.newposition-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.2rem;
+}
+.cancel-position-btn {
+  padding: 0.7em 1.2em;
+  border-radius: 0.7em;
+  border: none;
+  font-size: 1.08rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: #23272f;
+  color: #ffd166;
+  transition: background 0.18s, color 0.18s;
+}
+.cancel-position-btn:hover {
+  background: #ffd166;
+  color: #23272f;
+} 
