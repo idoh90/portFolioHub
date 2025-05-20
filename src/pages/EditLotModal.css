@@ -66,7 +66,22 @@
 }
 @media (max-width: 600px) {
   .editlot-modal {
-    min-width: 90vw;
-    padding: 1.2rem 0.5rem 1rem 0.5rem;
+    min-width: 95vw;
+    padding: 1rem 0.2rem 1rem 0.2rem;
+  }
+  .editlot-modal h2 {
+    font-size: 1.05rem;
+  }
+  .editlot-modal label {
+    font-size: 0.98rem;
+  }
+  .editlot-modal input[type="number"],
+  .editlot-modal input[type="date"] {
+    font-size: 0.98rem;
+    padding: 0.5em 0.7em;
+  }
+  .save-btn, .cancel-btn {
+    font-size: 1rem;
+    padding: 0.6em 1em;
   }
 } 

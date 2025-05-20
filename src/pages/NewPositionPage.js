@@ -14,13 +14,12 @@ const NewPositionPage = () => {
   const [date, setDate] = useState(today());
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!ticker || !shares || !price || !date) return;
     const upperTicker = ticker.trim().toUpperCase();
     const lotId = uuidv4();
-    // Add position with first lot in one step
-    addPosition(upperTicker, [{ id: lotId, shares: Number(shares), price: Number(price), date }]);
+    await addPosition(upperTicker, [{ id: lotId, shares: Number(shares), price: Number(price), date }]);
     navigate('/mystocks');
   };
 

@@ -1,16 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContext } from './AuthContext';
 import { v4 as uuidv4 } from 'uuid';
+import { db } from './firebase';
+import { ref, set, onValue, off, update, remove, push } from 'firebase/database';
 
 // Types for reference
 // type Lot = { id, shares, price, date } // date = ISO string
 // type Position = { id, ticker, lots: Lot[] }
 
 export const PositionsContext = createContext(null);
-
-function getStorageKey(user) {
-  return `positions_${user}`;
-}
 
 function recalcDerivedFields(position) {
   const totalShares = position.lots.reduce((sum, lot) => sum + Number(lot.shares), 0);
@@ -23,53 +21,54 @@ export function PositionsProvider({ children }) {
   const { user } = useContext(AuthContext);
   const [positions, setPositions] = useState([]);
 
-  // Load positions from localStorage on mount or user change
+  // Real-time sync with Firebase
   useEffect(() => {
     if (!user) return;
-    const key = getStorageKey(user);
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        setPositions(JSON.parse(stored));
-      } catch {
+    const userRef = ref(db, `positions/${user}`);
+    const handleValue = (snapshot) => {
+      const val = snapshot.val();
+      if (val) {
+        // Convert object to array
+        setPositions(Object.values(val));
+      } else {
         setPositions([]);
       }
-    } else {
-      setPositions([]);
-    }
+    };
+    onValue(userRef, handleValue);
+    return () => off(userRef, 'value', handleValue);
   }, [user]);
 
-  // Save positions to localStorage when they change
-  useEffect(() => {
-    if (!user) return;
-    const key = getStorageKey(user);
-    localStorage.setItem(key, JSON.stringify(positions));
-  }, [positions, user]);
-
   // Add a new position (optionally with initial lots)
-  const addPosition = (ticker, lots = []) => {
+  const addPosition = async (ticker, lots = []) => {
     const id = uuidv4();
-    setPositions(prev => [...prev, { id, ticker, lots }]);
+    const newPosition = { id, ticker, lots };
+    const userRef = ref(db, `positions/${user}/${id}`);
+    await set(userRef, newPosition);
     return id;
   };
 
   // Update a position (by id)
   const updatePosition = (id, updates) => {
-    setPositions(prev => prev.map(pos => pos.id === id ? { ...pos, ...updates } : pos));
+    const userRef = ref(db, `positions/${user}/${id}`);
+    update(userRef, updates);
   };
 
   // Delete a position (by id)
   const deletePosition = (id) => {
-    setPositions(prev => prev.filter(pos => pos.id !== id));
+    const userRef = ref(db, `positions/${user}/${id}`);
+    remove(userRef);
   };
 
   // Add a lot to a position (by position id)
   const addLot = (positionId, lot) => {
-    setPositions(prev => prev.map(pos =>
-      pos.id === positionId
-        ? { ...pos, lots: [...pos.lots, { ...lot, id: Date.now().toString() }] }
-        : pos
-    ));
+    const userRef = ref(db, `positions/${user}/${positionId}/lots`);
+    // Get current lots, add new lot
+    setPositions(prev => {
+      const pos = prev.find(p => p.id === positionId);
+      const lots = pos ? [...pos.lots, { ...lot, id: Date.now().toString() }] : [{ ...lot, id: Date.now().toString() }];
+      set(userRef, lots);
+      return prev;
+    });
   };
 
   // Derived fields for each position
