@@ -68,6 +68,7 @@
   gap: 1.25rem;
   justify-content: center;
   width: 100%;
+  flex-wrap: wrap;
 }
 
 .summary-block {
@@ -79,6 +80,8 @@
   align-items: center;
   min-width: 90px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  min-width: 0;
+  word-break: break-word;
 }
 
 .summary-label {
@@ -93,6 +96,9 @@
   font-weight: 700;
   letter-spacing: 0.01em;
   margin-bottom: 0.1rem;
+  min-width: 0;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .bold {
