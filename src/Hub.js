@@ -370,9 +370,6 @@ const Hub = () => {
   return (
     <div className="hub-container" key={refreshKey}>
       <div className="hub-padding-top" />
-      <div className="hub-logo-container">
-        <img src="/logo.png" alt="App Logo" className="hub-logo" />
-      </div>
       <button className="logout-btn modern-button" onClick={handleLogout} title="Logout">⎋</button>
       <div className="financial-summary-vertical">
         <div className="total-value-block">

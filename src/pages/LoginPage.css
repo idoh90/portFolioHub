@@ -90,20 +90,6 @@
   animation: shake 0.4s;
 }
 
-.login-logo-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 1.2rem;
-}
-
-.login-logo {
-  width: 90px;
-  height: auto;
-  max-width: 40vw;
-  display: block;
-}
-
 @media (max-width: 480px) {
   .login-bg {
     min-width: 100vw;
@@ -124,13 +110,5 @@
   .login-btn {
     font-size: 1rem;
     padding: 0.7rem 0.7rem;
-  }
-  .login-logo {
-    width: 60px;
-    max-width: 30vw;
-    display: block;
-  }
-  .login-logo-container {
-    margin-bottom: 0.7rem;
   }
 } 
