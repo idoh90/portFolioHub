@@ -114,6 +114,92 @@ const mockFriends = [
   },
 ];
 
+// Custom hook to manage user's online status
+function useOnlineStatus(username) {
+  useEffect(() => {
+    if (!username) return;
+
+    // Update last online time when component mounts (user enters site)
+    const updateLastOnline = () => {
+      const timestamp = new Date().toISOString();
+      localStorage.setItem(`lastOnline_${username}`, timestamp);
+    };
+
+    // Update on mount (when user enters site)
+    updateLastOnline();
+
+    // Set up interval to update timestamp periodically while user is active
+    const interval = setInterval(updateLastOnline, 60000); // Update every minute
+
+    // Update on window focus
+    const handleFocus = () => {
+      updateLastOnline();
+    };
+
+    // Update before user leaves
+    const handleBeforeUnload = () => {
+      updateLastOnline();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [username]);
+}
+
+// Hook to get last online time for a user
+function useLastOnlineTime(username) {
+  const [lastOnline, setLastOnline] = useState(null);
+
+  useEffect(() => {
+    const getLastOnline = () => {
+      const timestamp = localStorage.getItem(`lastOnline_${username}`);
+      setLastOnline(timestamp ? new Date(timestamp) : null);
+    };
+
+    // Get initial value
+    getLastOnline();
+
+    // Set up interval to check for updates
+    const interval = setInterval(getLastOnline, 10000); // Check every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [username]);
+
+  return lastOnline;
+}
+
+// Helper function to format time since
+function formatTimeSince(date) {
+  if (!date) return 'Never';
+  
+  const seconds = Math.floor((new Date() - date) / 1000);
+  
+  let interval = seconds / 31536000;
+  if (interval > 1) return Math.floor(interval) + "y ago";
+  
+  interval = seconds / 2592000;
+  if (interval > 1) return Math.floor(interval) + "mo ago";
+  
+  interval = seconds / 86400;
+  if (interval > 1) return Math.floor(interval) + "d ago";
+  
+  interval = seconds / 3600;
+  if (interval > 1) return Math.floor(interval) + "h ago";
+  
+  interval = seconds / 60;
+  if (interval > 1) return Math.floor(interval) + "m ago";
+  
+  if (seconds < 10) return "Just now";
+  
+  return Math.floor(seconds) + "s ago";
+}
+
 // Data hooks (stubs)
 export function useNews() {
   return mockArticles;
@@ -415,10 +501,11 @@ function useFriendPortfolioStats(friendName) {
   return stats;
 }
 
-// Friend card component to handle individual friend stats
+// Updated Friend card component with real last online time
 const FriendCard = ({ friendName }) => {
   const stats = useFriendPortfolioStats(friendName);
   const [showModal, setShowModal] = useState(false);
+  const lastOnlineTime = useLastOnlineTime(friendName);
   
   return (
     <>
@@ -447,6 +534,9 @@ const FriendCard = ({ friendName }) => {
             <span>{stats.hasLiveData ? formatCurrency(stats.biggestStockValue) : '--'}</span>
           </div>
         )}
+        <div className="friend-last-online">
+          <span>Last online: {formatTimeSince(lastOnlineTime)}</span>
+        </div>
       </div>
       
       {showModal && (
@@ -479,13 +569,229 @@ const FriendsPortfolios = ({ friends }) => {
   );
 };
 
+// New FriendsGroupStats component
+const FriendsGroupStats = ({ friends }) => {
+  const [stats, setStats] = useState({
+    mostProfitable: { name: '', value: 0 },
+    bestDailyGainer: { name: '', value: 0 },
+    mostDiversified: { name: '', count: 0 },
+    mostActive: { name: '', count: 0 },
+    optionsEnthusiast: { name: '', count: 0 },
+    worstDay: { name: '', value: 0 }
+  });
+  const [hasData, setHasData] = useState(false);
+  // Get the mock friends data at component level
+  const allFriendData = useFriends();
+
+  useEffect(() => {
+    const calculateStats = () => {
+      let mostProfitable = { name: '', value: 0 };
+      let bestDailyGainer = { name: '', value: 0 };
+      let mostDiversified = { name: '', count: 0 };
+      let mostActive = { name: '', count: 0 };
+      let optionsEnthusiast = { name: '', count: 0 };
+      let worstDay = { name: '', value: 0 };
+      let dataFound = false;
+
+      // Process each friend's portfolio data from localStorage
+      friends.forEach(friendName => {
+        // Try to get positions from localStorage first
+        const storedPositionsStr = localStorage.getItem(`positions_${friendName}`);
+        
+        try {
+          // If localStorage data exists, use it
+          if (storedPositionsStr) {
+            const storedPositions = JSON.parse(storedPositionsStr);
+            if (Array.isArray(storedPositions) && storedPositions.length > 0) {
+              dataFound = true;
+              
+              // Calculate total P/L
+              let totalPnl = 0;
+              let dailyChange = 0;
+              const uniqueStocks = new Set();
+              let lastWeekTrades = 0;
+              let optionsCount = 0;
+
+              storedPositions.forEach(position => {
+                if (!position.lots || position.lots.length === 0) return;
+
+                // Add to unique stocks
+                uniqueStocks.add(position.ticker);
+
+                // Check if it's an option position
+                if (position.isOption) {
+                  optionsCount += position.lots.length;
+                }
+
+                // Calculate trades in last 7 days
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+                position.lots.forEach(lot => {
+                  const shares = Number(lot.shares);
+                  const buyPrice = Number(lot.price);
+                  const currentPrice = Number(lot.currentPrice || buyPrice * 1.02); // Mock current price
+                  
+                  // Calculate P/L
+                  const lotPnl = shares * (currentPrice - buyPrice);
+                  totalPnl += lotPnl;
+
+                  // Calculate daily change (mock: using random values for demo)
+                  const yesterdayPrice = currentPrice / (1 + (Math.random() * 0.03 - 0.005));
+                  const lotDailyChangePct = (currentPrice - yesterdayPrice) / yesterdayPrice * 100;
+                  if (Math.abs(lotDailyChangePct) > Math.abs(dailyChange)) {
+                    dailyChange = lotDailyChangePct;
+                  }
+
+                  // Count recent trades
+                  if (lot.date) {
+                    const lotDate = new Date(lot.date);
+                    if (lotDate > sevenDaysAgo) {
+                      lastWeekTrades++;
+                    }
+                  }
+                });
+              });
+
+              // Update stats if this friend has better values
+              if (totalPnl > mostProfitable.value) {
+                mostProfitable = { name: friendName, value: totalPnl };
+              }
+
+              if (dailyChange > 0 && dailyChange > bestDailyGainer.value) {
+                bestDailyGainer = { name: friendName, value: dailyChange };
+              } else if (dailyChange < 0 && dailyChange < worstDay.value) {
+                worstDay = { name: friendName, value: dailyChange };
+              }
+
+              if (uniqueStocks.size > mostDiversified.count) {
+                mostDiversified = { name: friendName, count: uniqueStocks.size };
+              }
+
+              if (lastWeekTrades > mostActive.count) {
+                mostActive = { name: friendName, count: lastWeekTrades };
+              }
+
+              if (optionsCount > optionsEnthusiast.count) {
+                optionsEnthusiast = { name: friendName, count: optionsCount };
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error processing friend stats for ${friendName}:`, error);
+        }
+      });
+
+      setHasData(dataFound);
+      setStats({
+        mostProfitable,
+        bestDailyGainer,
+        mostDiversified,
+        mostActive,
+        optionsEnthusiast,
+        worstDay
+      });
+    };
+
+    calculateStats();
+  }, [friends]);
+
+  const formatCurrency = (value) =>
+    value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+  if (!hasData) {
+    return (
+      <div className="friends-group-stats no-data">
+        <h3>Group Stats</h3>
+        <div className="no-data-message">
+          Still waiting for more movements, start adding stock bitch
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="friends-group-stats">
+      <h3>Group Stats</h3>
+      <div className="stats-grid">
+        {stats.mostProfitable.name && (
+          <div className="stat-card">
+            <div className="stat-emoji">🔥</div>
+            <div className="stat-title">Most Profitable Friend</div>
+            <div className="stat-value">
+              📈 {stats.mostProfitable.name} has the highest total P/L: 
+              {stats.mostProfitable.value > 0 ? '+' : ''}{formatCurrency(stats.mostProfitable.value)}
+            </div>
+          </div>
+        )}
+
+        {stats.bestDailyGainer.name && (
+          <div className="stat-card">
+            <div className="stat-emoji">🚀</div>
+            <div className="stat-title">Best Daily Gainer</div>
+            <div className="stat-value">
+              📊 {stats.bestDailyGainer.name} had the best daily return: 
+              +{stats.bestDailyGainer.value.toFixed(2)}% today
+            </div>
+          </div>
+        )}
+
+        {stats.mostDiversified.name && (
+          <div className="stat-card">
+            <div className="stat-emoji">🧠</div>
+            <div className="stat-title">Most Diversified Portfolio</div>
+            <div className="stat-value">
+              🔀 {stats.mostDiversified.name} holds {stats.mostDiversified.count} unique stocks
+            </div>
+          </div>
+        )}
+
+        {stats.mostActive.name && (
+          <div className="stat-card">
+            <div className="stat-emoji">📦</div>
+            <div className="stat-title">Most Active Trader (Last 7 Days)</div>
+            <div className="stat-value">
+              🔄 {stats.mostActive.name} made {stats.mostActive.count} trades this week
+            </div>
+          </div>
+        )}
+
+        {stats.optionsEnthusiast.name && (
+          <div className="stat-card">
+            <div className="stat-emoji">🛠️</div>
+            <div className="stat-title">Options Enthusiast</div>
+            <div className="stat-value">
+              🧩 {stats.optionsEnthusiast.name} holds {stats.optionsEnthusiast.count} options
+            </div>
+          </div>
+        )}
+
+        {stats.worstDay.name && (
+          <div className="stat-card">
+            <div className="stat-emoji">📉</div>
+            <div className="stat-title">Worst Day</div>
+            <div className="stat-value">
+              😵 {stats.worstDay.name} dropped {Math.abs(stats.worstDay.value).toFixed(2)}% today. Yikes.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const Hub = () => {
   const { user, logout } = useContext(AuthContext);
   const { positions } = useContext(PositionsContext);
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Track online status for current user
+  useOnlineStatus(user);
+
   const handleLogout = () => {
+    // Update last online time before logging out
+    localStorage.setItem(`lastOnline_${user}`, new Date().toISOString());
     logout();
     navigate('/');
   };
@@ -542,6 +848,7 @@ const Hub = () => {
           <h2>Friends' Portfolios</h2>
         </div>
         <FriendsPortfolios friends={friends} />
+        <FriendsGroupStats friends={friends} />
       </div>
       {/* Activity Feed block */}
       <ActivityFeed />
