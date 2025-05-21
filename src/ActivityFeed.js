@@ -1,9 +1,29 @@
-import React, { useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { ActivityFeedContext } from './ActivityFeedContext';
 import './ActivityFeed.css';
 
 const ActivityFeed = () => {
   const { activities } = useContext(ActivityFeedContext);
+
+  // Sync activities to localStorage for offline access and cleanup operations
+  useEffect(() => {
+    if (activities && activities.length) {
+      // Format activities for storage with additional metadata for cleanup
+      const formattedActivities = activities.map(activity => {
+        return {
+          user: activity.userId || 'Anonymous',
+          action: getActionText(activity.actionType),
+          ticker: activity.ticker,
+          timestamp: activity.timestamp,
+          amount: activity.amount,
+          type: activity.assetType || 'stock', // Default to stock if not specified
+          optionType: activity.optionType || null // Only for options
+        };
+      });
+      
+      localStorage.setItem('activityFeed', JSON.stringify(formattedActivities));
+    }
+  }, [activities]);
 
   // Format timestamp to human-readable time
   const formatTime = (timestamp) => {
@@ -82,6 +102,9 @@ const ActivityFeed = () => {
                     <span className="activity-text">
                       {getActionText(activity.actionType)} 
                       <span className="activity-ticker"> {activity.ticker}</span>
+                      {activity.assetType === 'option' && activity.optionType && (
+                        <span className="activity-option-type"> {activity.optionType}</span>
+                      )}
                     </span>
                   </div>
                   <div className="activity-time">{formatTime(activity.timestamp)}</div>

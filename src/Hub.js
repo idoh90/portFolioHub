@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useMemo } from 'react';
+import React, { useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from './AuthContext';
 import { PositionsContext } from './PositionsContext';
@@ -27,44 +27,215 @@ const ensureFriendDataInitialized = () => {
     if (!localStorage.getItem(`positions_${userName}`)) {
       // Initialize empty positions array
       localStorage.setItem(`positions_${userName}`, JSON.stringify([]));
+    } else {
+      // Validate existing positions data
+      try {
+        const existingPositions = JSON.parse(localStorage.getItem(`positions_${userName}`));
+        // Filter out invalid positions (missing or empty lots)
+        const validPositions = Array.isArray(existingPositions) 
+          ? existingPositions.filter(pos => pos && pos.lots && pos.lots.length > 0)
+          : [];
+        localStorage.setItem(`positions_${userName}`, JSON.stringify(validPositions));
+      } catch (e) {
+        console.error(`Error validating positions for ${userName}:`, e);
+        localStorage.setItem(`positions_${userName}`, JSON.stringify([]));
+      }
     }
     
     // Check options
     if (!localStorage.getItem(`options_${userName}`)) {
       // Initialize empty options array
       localStorage.setItem(`options_${userName}`, JSON.stringify([]));
+    } else {
+      // Validate existing options data
+      try {
+        const existingOptions = JSON.parse(localStorage.getItem(`options_${userName}`));
+        // Ensure options data is valid array
+        const validOptions = Array.isArray(existingOptions) ? existingOptions : [];
+        localStorage.setItem(`options_${userName}`, JSON.stringify(validOptions));
+      } catch (e) {
+        console.error(`Error validating options for ${userName}:`, e);
+        localStorage.setItem(`options_${userName}`, JSON.stringify([]));
+      }
     }
     
-    // Add sample options for Ofek if none exist (for testing only)
-    if (userName === 'Ofek' && localStorage.getItem(`options_${userName}`) === '[]') {
-      const sampleOptions = [
-        {
-          id: 'sample-option-1',
-          ticker: 'AAPL',
-          type: 'CALL',
-          direction: 'LONG',
-          contracts: 2,
-          strike: 175,
-          premium: 5.25,
-          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-          tradeDate: new Date().toISOString()
-        },
-        {
-          id: 'sample-option-2',
-          ticker: 'MSFT',
-          type: 'PUT',
-          direction: 'SHORT',
-          contracts: 1,
-          strike: 320,
-          premium: 7.80,
-          expiration: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days from now
-          tradeDate: new Date().toISOString()
-        }
-      ];
-      localStorage.setItem(`options_${userName}`, JSON.stringify(sampleOptions));
-    }
+    // NO MORE MOCK DATA FOR ANY USER - Removed all mock data initialization
   });
 };
+
+// Function to clean up sold positions and options
+const cleanupSoldItems = () => {
+  const allAvailableUsers = ['Yanai', 'Ido', 'Ofek', 'Megi'];
+  const activityData = localStorage.getItem('activityFeed');
+  
+  if (!activityData) return;
+  
+  try {
+    // Parse activity feed to find sell transactions
+    const activities = JSON.parse(activityData);
+    if (!Array.isArray(activities)) return;
+    
+    // Process each user
+    allAvailableUsers.forEach(userName => {
+      // Get user's sell activities
+      const userSellActivities = activities.filter(
+        activity => activity.user === userName && activity.action === 'sold'
+      );
+      
+      if (userSellActivities.length === 0) return;
+      
+      // Process stock positions
+      try {
+        const positionsKey = `positions_${userName}`;
+        const positionsData = localStorage.getItem(positionsKey);
+        
+        if (positionsData) {
+          const positions = JSON.parse(positionsData);
+          if (Array.isArray(positions) && positions.length > 0) {
+            // Check each position against sell activities
+            const updatedPositions = positions.filter(position => {
+              // Keep positions that haven't been fully sold
+              const tickerSellActivities = userSellActivities.filter(
+                activity => activity.ticker === position.ticker && activity.type === 'stock'
+              );
+              
+              return tickerSellActivities.length === 0;
+            });
+            
+            localStorage.setItem(positionsKey, JSON.stringify(updatedPositions));
+          }
+        }
+      } catch (e) {
+        console.error(`Error cleaning up positions for ${userName}:`, e);
+      }
+      
+      // Process options
+      try {
+        const optionsKey = `options_${userName}`;
+        const optionsData = localStorage.getItem(optionsKey);
+        
+        if (optionsData) {
+          const options = JSON.parse(optionsData);
+          if (Array.isArray(options) && options.length > 0) {
+            // Check each option against sell activities
+            const updatedOptions = options.filter(option => {
+              // Keep options that haven't been sold
+              const optionSellActivities = userSellActivities.filter(
+                activity => 
+                  activity.ticker === option.ticker && 
+                  activity.type === 'option' && 
+                  activity.optionType === option.type
+              );
+              
+              return optionSellActivities.length === 0;
+            });
+            
+            localStorage.setItem(optionsKey, JSON.stringify(updatedOptions));
+          }
+        }
+      } catch (e) {
+        console.error(`Error cleaning up options for ${userName}:`, e);
+      }
+    });
+  } catch (e) {
+    console.error('Error processing activity feed for cleanup:', e);
+  }
+};
+
+// Special cleanup for Ofek's data to remove mock entries
+const cleanupOfekMockData = () => {
+  try {
+    // Clean up positions
+    const positionsKey = 'positions_Ofek';
+    const positionsData = localStorage.getItem(positionsKey);
+    if (positionsData) {
+      const positions = JSON.parse(positionsData);
+      if (Array.isArray(positions)) {
+        // Remove any AAPL positions (mock data)
+        const cleanedPositions = positions.filter(pos => pos && pos.ticker !== 'AAPL');
+        localStorage.setItem(positionsKey, JSON.stringify(cleanedPositions));
+        console.log('Cleaned up Ofek positions:', cleanedPositions);
+      }
+    }
+    
+    // Clean up options
+    const optionsKey = 'options_Ofek';
+    const optionsData = localStorage.getItem(optionsKey);
+    if (optionsData) {
+      const options = JSON.parse(optionsData);
+      if (Array.isArray(options)) {
+        // Remove any AAPL options or CLSK options (that are supposed to be sold)
+        const cleanedOptions = options.filter(opt => 
+          opt && (opt.ticker !== 'AAPL' && !(opt.ticker === 'CLSK' && opt.type === 'CALL'))
+        );
+        localStorage.setItem(optionsKey, JSON.stringify(cleanedOptions));
+        console.log('Cleaned up Ofek options:', cleanedOptions);
+      }
+    }
+  } catch (e) {
+    console.error('Error cleaning up Ofek data:', e);
+  }
+};
+
+// Function to purge all mock data and ensure a clean state
+const purgeAllMockData = () => {
+  console.log('Purging all mock data...');
+  const allAvailableUsers = ['Yanai', 'Ido', 'Ofek', 'Megi'];
+  
+  // Clean specific problematic data
+  cleanupOfekMockData();
+  
+  // Remove any positions with AAPL ticker for all users (common mock data)
+  allAvailableUsers.forEach(userName => {
+    // Positions
+    try {
+      const positionsKey = `positions_${userName}`;
+      const positionsData = localStorage.getItem(positionsKey);
+      if (positionsData) {
+        const positions = JSON.parse(positionsData);
+        if (Array.isArray(positions)) {
+          // Remove any AAPL positions (common mock data)
+          const cleanedPositions = positions.filter(pos => 
+            pos && pos.ticker !== 'AAPL' && pos.ticker !== 'MOCK'
+          );
+          localStorage.setItem(positionsKey, JSON.stringify(cleanedPositions));
+        }
+      }
+    } catch (e) {
+      console.error(`Error cleaning positions for ${userName}:`, e);
+    }
+    
+    // Options
+    try {
+      const optionsKey = `options_${userName}`;
+      const optionsData = localStorage.getItem(optionsKey);
+      if (optionsData) {
+        const options = JSON.parse(optionsData);
+        if (Array.isArray(options)) {
+          // Filter out suspicious mock options
+          const cleanedOptions = options.filter(opt => 
+            opt && opt.ticker !== 'AAPL' && 
+            !(opt.premium > 100) && // Unrealistic premium values
+            !(opt.contracts > 1000) // Unrealistic contract counts
+          );
+          localStorage.setItem(optionsKey, JSON.stringify(cleanedOptions));
+        }
+      }
+    } catch (e) {
+      console.error(`Error cleaning options for ${userName}:`, e);
+    }
+  });
+  
+  // Also clean up any sold items based on activity feed
+  cleanupSoldItems();
+  
+  console.log('All mock data purged');
+};
+
+// Export functions to window for access from other components
+// IMPORTANT: Must be placed after function definitions to avoid initialization errors
+window.cleanupOfekMockData = cleanupOfekMockData;
+window.purgeAllMockData = purgeAllMockData;
 
 // Custom hook to manage user's online status
 function useOnlineStatus(username) {
@@ -608,6 +779,21 @@ const FriendCard = ({ friendName }) => {
   const lastOnlineTime = useLastOnlineTime(friendName);
   const [friendOptions, setFriendOptions] = useState([]);
   const [totalOptionsValue, setTotalOptionsValue] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Force refresh data
+  const refreshData = useCallback(() => {
+    setRefreshKey(prevKey => prevKey + 1);
+  }, []);
+  
+  // Clean up data and refresh on mount or friendName change
+  useEffect(() => {
+    // Clean special case for Ofek
+    if (friendName === 'Ofek') {
+      cleanupOfekMockData();
+    }
+    refreshData();
+  }, [friendName]);
   
   // Get friend's options
   useEffect(() => {
@@ -617,14 +803,20 @@ const FriendCard = ({ friendName }) => {
       if (optionsData) {
         const parsedOptions = JSON.parse(optionsData);
         if (Array.isArray(parsedOptions)) {
-          setFriendOptions(parsedOptions);
+          // Filter out invalid options
+          const validOptions = parsedOptions.filter(opt => 
+            opt && opt.ticker && opt.contracts && opt.premium
+          );
+          setFriendOptions(validOptions);
           
           // Calculate total options value
           let optionsValue = 0;
-          parsedOptions.forEach(option => {
+          validOptions.forEach(option => {
             const contracts = Number(option.contracts || 0);
             const premium = Number(option.premium || 0);
-            optionsValue += contracts * premium * 100; // Each contract is 100 shares
+            if (contracts > 0 && premium > 0) {
+              optionsValue += contracts * premium * 100; // Each contract is 100 shares
+            }
           });
           setTotalOptionsValue(optionsValue);
         } else {
@@ -640,7 +832,7 @@ const FriendCard = ({ friendName }) => {
       setFriendOptions([]);
       setTotalOptionsValue(0);
     }
-  }, [friendName]);
+  }, [friendName, refreshKey]);
   
   // Calculate combined portfolio value including options
   const combinedValue = stats.hasLiveData ? stats.totalValue + totalOptionsValue : 0;
@@ -648,53 +840,52 @@ const FriendCard = ({ friendName }) => {
   return (
     <>
       <div className="friend-card" onClick={() => setShowModal(true)}>
-        <div className="friend-name">{friendName}</div>
-        <div className="friend-portfolio-value">
-          {stats.hasLiveData ? formatCurrency(combinedValue) : '--'}
-        </div>
-        <div className="friend-positions">
-          <div className="friend-position">
-            <span className="ticker">Total P/L</span>
-            <span className={stats.totalPL >= 0 ? 'pos' : 'neg'}>
-              {stats.hasLiveData ? `${stats.totalPL >= 0 ? '+' : ''}${formatCurrency(stats.totalPL)}` : '--'}
+        <div className="friend-header">
+          <div className="friend-name">{friendName}</div>
+          <div className="last-online">
+            <span className="online-status">
+              {lastOnlineTime && (new Date() - lastOnlineTime) < 5 * 60 * 1000 
+                ? '🟢' 
+                : '⚪'}
             </span>
-          </div>
-          <div className="friend-position">
-            <span className="ticker">Daily P/L</span>
-            <span className={stats.dailyPL >= 0 ? 'pos' : 'neg'}>
-              {stats.hasLiveData ? `${stats.dailyPL >= 0 ? '+' : ''}${stats.dailyPL.toFixed(2)}%` : '--'}
-            </span>
+            {lastOnlineTime ? formatTimeSince(lastOnlineTime) : 'Never'}
           </div>
         </div>
         
-        {stats.biggestStock && (
-          <div className="friend-biggest-stock">
-            <span>Biggest: <b>{stats.biggestStock}</b></span>
-            <span>{stats.hasLiveData ? formatCurrency(stats.biggestStockValue) : '--'}</span>
+        <div className="friend-portfolio-summary">
+          <div className="friend-total-value">
+            <span className="value-label">Portfolio:</span>
+            <span className="value-amount">
+              {combinedValue > 0 ? formatCurrency(combinedValue) : '--'}
+            </span>
           </div>
-        )}
-        
-        {/* Display friend's options */}
-        {friendOptions.length > 0 && (
-          <div className="friend-options">
-            <span>Options: {friendOptions.length}</span>
-            <div className="friend-options-preview">
-              {friendOptions.slice(0, 2).map((option, idx) => (
-                <div key={idx} className="friend-recent-option">
-                  <span className={option.type === 'CALL' ? 'call-option' : 'put-option'}>
-                    {option.ticker} {option.type} ${option.strike}
-                  </span>
-                </div>
-              ))}
-              {friendOptions.length > 2 && (
-                <div className="friend-options-more">+{friendOptions.length - 2} more</div>
-              )}
+          
+          {stats.biggestStock && (
+            <div className="friend-biggest-holding">
+              <span className="value-label">Top Holding:</span>
+              <span className="value-ticker">{stats.biggestStock}</span>
             </div>
-          </div>
-        )}
+          )}
+          
+          {stats.totalPL !== 0 && (
+            <div className="friend-portfolio-pl">
+              <span className="value-label">Total P/L:</span>
+              <span className={`value-amount ${getColor(stats.totalPL)}`}>
+                {stats.totalPL > 0 ? '+' : ''}{formatCurrency(stats.totalPL)}
+              </span>
+            </div>
+          )}
+          
+          {friendOptions.length > 0 && (
+            <div className="friend-options-summary">
+              <span className="value-label">Options:</span>
+              <span className="value-amount">{friendOptions.length} contract(s)</span>
+            </div>
+          )}
+        </div>
         
-        <div className="friend-last-online">
-          <span>Last online: {formatTimeSince(lastOnlineTime)}</span>
+        <div className="view-portfolio-btn">
+          Click to view portfolio
         </div>
       </div>
       
@@ -714,17 +905,38 @@ const FriendsPortfolios = ({ friends }) => {
   // Refresh stats every 5 minutes
   useEffect(() => {
     const timer = setInterval(() => {
+      cleanupSoldItems(); // Clean up sold items first
       setRefreshKey(k => k + 1);
     }, 5 * 60 * 1000);
     return () => clearInterval(timer);
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    // Purge all mock data including sold items
+    purgeAllMockData();
+    // Re-initialize friend data
+    ensureFriendDataInitialized();
+    // Force a re-render by updating the refresh key
+    setRefreshKey(prevKey => prevKey + 1);
+  }, []);
+
   return (
-    <div className="friends-grid" key={refreshKey}>
-      {friends.map((friend, idx) => (
-        <FriendCard key={idx} friendName={friend} />
-      ))}
-    </div>
+    <>
+      <div className="friends-header-actions">
+        <button 
+          className="refresh-button modern-button" 
+          onClick={handleRefresh}
+          title="Refresh friends' data"
+        >
+          <span className="refresh-icon">↻</span> Refresh
+        </button>
+      </div>
+      <div className="friends-grid" key={refreshKey}>
+        {friends.map((friend, idx) => (
+          <FriendCard key={`${friend}-${refreshKey}-${idx}`} friendName={friend} />
+        ))}
+      </div>
+    </>
   );
 };
 
@@ -964,8 +1176,11 @@ const Hub = () => {
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Initialize friends' data if needed
+  // Initialize friends' data if needed and clean up sold items
   useEffect(() => {
+    // Purge all mock data on app startup
+    purgeAllMockData();
+    // Then initialize any missing data structures
     ensureFriendDataInitialized();
   }, []);
   

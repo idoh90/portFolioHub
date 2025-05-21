@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './FriendPortfolioModal.css';
@@ -30,6 +30,7 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
   const [options, setOptions] = useState([]);
   const [activeTab, setActiveTab] = useState('stocks');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     totalValue: 0,
     totalPL: 0,
@@ -37,101 +38,197 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
     lastUpdated: new Date().toLocaleString()
   });
 
-  // Load the friend's portfolio data
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        let totalValue = 0;
-        let totalCost = 0;
-        let yesterdayValue = 0;
-
-        // Get positions from localStorage
+  // Define fetchData as a callback so it can be called from UI
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Special cleanup for Ofek
+      if (friend.friendName === 'Ofek' && window.cleanupOfekMockData) {
         try {
-          const storedPositions = localStorage.getItem(`positions_${friend.friendName}`);
-          if (storedPositions) {
-            const parsedPositions = JSON.parse(storedPositions);
-            
-            // Filter out positions with no lots or empty lots arrays
-            const validPositions = parsedPositions.filter(pos => pos.lots && pos.lots.length > 0);
-            setPositions(validPositions);
-
-            // Calculate portfolio stats from real position data
-            validPositions.forEach(position => {
-              position.lots.forEach(lot => {
-                const shares = Number(lot.shares);
-                const buyPrice = Number(lot.price);
-                const currentPrice = Number(lot.currentPrice || buyPrice);
-                
-                const lotValue = shares * currentPrice;
-                const lotCost = shares * buyPrice;
-                const lotYesterdayValue = shares * (currentPrice * 0.99); // Approximate yesterday's value
-                
-                totalValue += lotValue;
-                totalCost += lotCost;
-                yesterdayValue += lotYesterdayValue;
-              });
-            });
-          } else {
-            setPositions([]);
-          }
-        } catch (posError) {
-          console.error("Error parsing positions for friend:", friend.friendName, posError);
-          setPositions([]);
+          window.cleanupOfekMockData();
+        } catch (e) {
+          console.error("Error cleaning up Ofek data:", e);
         }
-
-        // Get options from localStorage
+      }
+      
+      // If purgeAllMockData is available, use it
+      if (window.purgeAllMockData) {
         try {
-          const storedOptions = localStorage.getItem(`options_${friend.friendName}`);
-          if (storedOptions) {
-            const parsedOptions = JSON.parse(storedOptions);
-            setOptions(Array.isArray(parsedOptions) ? parsedOptions : []);
+          window.purgeAllMockData();
+        } catch (e) {
+          console.error("Error purging all mock data:", e);
+        }
+      }
+      
+      let totalValue = 0;
+      let totalCost = 0;
+      let yesterdayValue = 0;
+
+      // First check activity feed for recent sells
+      try {
+        const activityData = localStorage.getItem('activityFeed');
+        if (activityData) {
+          const activities = JSON.parse(activityData);
+          const friendSellActivities = activities.filter(
+            activity => activity.user === friend.friendName && activity.action === 'sold'
+          );
+          
+          // If there are sell activities, process them
+          if (friendSellActivities.length > 0) {
+            console.log(`Found ${friendSellActivities.length} sell activities for ${friend.friendName}`);
+          }
+        }
+      } catch (activityError) {
+        console.error("Error checking activity feed:", activityError);
+      }
+
+      // Get positions from localStorage
+      try {
+        const storedPositions = localStorage.getItem(`positions_${friend.friendName}`);
+        if (storedPositions) {
+          const parsedPositions = JSON.parse(storedPositions);
+          
+          // Filter out positions with no lots or empty lots arrays
+          const validPositions = parsedPositions.filter(pos => 
+            pos && pos.ticker && pos.lots && Array.isArray(pos.lots) && pos.lots.length > 0
+          );
+          
+          // Further validate against activity feed
+          const activityData = localStorage.getItem('activityFeed');
+          let filteredPositions = validPositions;
+          
+          if (activityData) {
+            const activities = JSON.parse(activityData);
+            const friendSellActivities = activities.filter(
+              activity => activity.user === friend.friendName && activity.action === 'sold' && activity.type === 'stock'
+            );
             
-            // Add options value to total stats
-            if (Array.isArray(parsedOptions) && parsedOptions.length > 0) {
-              parsedOptions.forEach(option => {
-                const contracts = Number(option.contracts || 0);
-                const strike = Number(option.strike || 0);
-                const premium = Number(option.premium || 0);
-                
-                // Simple calculation for demonstration - this would be more complex in reality
-                const optionValue = contracts * premium * 100; // Each contract is 100 shares
-                const optionCost = contracts * premium * 100;
-                const optionYesterdayValue = optionValue * 0.99; // Approximate
-                
-                totalValue += optionValue;
-                totalCost += optionCost;
-                yesterdayValue += optionYesterdayValue;
+            if (friendSellActivities.length > 0) {
+              // Remove sold positions
+              filteredPositions = validPositions.filter(position => {
+                const soldActivity = friendSellActivities.find(
+                  activity => activity.ticker === position.ticker
+                );
+                return !soldActivity;
               });
             }
-          } else {
-            setOptions([]);
           }
-        } catch (optError) {
-          console.error("Error parsing options for friend:", friend.friendName, optError);
+          
+          setPositions(filteredPositions);
+
+          // Calculate portfolio stats from real position data
+          filteredPositions.forEach(position => {
+            if (!position.lots) return;
+            
+            position.lots.forEach(lot => {
+              if (!lot) return;
+              
+              const shares = Number(lot.shares) || 0;
+              const buyPrice = Number(lot.price) || 0;
+              const currentPrice = Number(lot.currentPrice) || buyPrice;
+              
+              if (shares <= 0 || buyPrice <= 0) return; // Skip invalid data
+              
+              const lotValue = shares * currentPrice;
+              const lotCost = shares * buyPrice;
+              const lotYesterdayValue = shares * (currentPrice * 0.99); // Approximate yesterday's value
+              
+              totalValue += lotValue;
+              totalCost += lotCost;
+              yesterdayValue += lotYesterdayValue;
+            });
+          });
+        } else {
+          setPositions([]);
+        }
+      } catch (posError) {
+        console.error("Error parsing positions for friend:", friend.friendName, posError);
+        setPositions([]);
+      }
+
+      // Get options from localStorage
+      try {
+        const storedOptions = localStorage.getItem(`options_${friend.friendName}`);
+        if (storedOptions) {
+          const parsedOptions = JSON.parse(storedOptions);
+          const validOptions = Array.isArray(parsedOptions) ? parsedOptions : [];
+          
+          // Further validate against activity feed
+          const activityData = localStorage.getItem('activityFeed');
+          let filteredOptions = validOptions;
+          
+          if (activityData) {
+            const activities = JSON.parse(activityData);
+            const friendSellActivities = activities.filter(
+              activity => activity.user === friend.friendName && activity.action === 'sold' && activity.type === 'option'
+            );
+            
+            if (friendSellActivities.length > 0) {
+              // Remove sold options
+              filteredOptions = validOptions.filter(option => {
+                const soldActivity = friendSellActivities.find(
+                  activity => activity.ticker === option.ticker && activity.optionType === option.type
+                );
+                return !soldActivity;
+              });
+            }
+          }
+          
+          setOptions(filteredOptions);
+          
+          // Add options value to total stats
+          if (filteredOptions.length > 0) {
+            filteredOptions.forEach(option => {
+              if (!option) return;
+              
+              const contracts = Number(option.contracts) || 0;
+              const strike = Number(option.strike) || 0;
+              const premium = Number(option.premium) || 0;
+              
+              if (contracts <= 0 || premium <= 0) return; // Skip invalid data
+              
+              // Simple calculation for demonstration - this would be more complex in reality
+              const optionValue = contracts * premium * 100; // Each contract is 100 shares
+              const optionCost = contracts * premium * 100;
+              const optionYesterdayValue = optionValue * 0.99; // Approximate
+              
+              totalValue += optionValue;
+              totalCost += optionCost;
+              yesterdayValue += optionYesterdayValue;
+            });
+          }
+        } else {
           setOptions([]);
         }
-
-        const totalPL = totalValue - totalCost;
-        const plPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
-        const dailyPL = totalValue > 0 ? ((totalValue - yesterdayValue) / yesterdayValue) * 100 : 0;
-
-        setStats({
-          totalValue,
-          totalPL,
-          plPercent,
-          dailyPL,
-          lastUpdated: new Date().toLocaleString()
-        });
-
-        setLoading(false);
-      } catch (error) {
-        console.error("Error loading friend portfolio data:", error);
-        setLoading(false);
+      } catch (optError) {
+        console.error("Error parsing options for friend:", friend.friendName, optError);
+        setOptions([]);
       }
-    };
-    
-    fetchData();
+
+      const totalPL = totalValue - totalCost;
+      const plPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
+      const dailyPL = yesterdayValue > 0 ? ((totalValue - yesterdayValue) / yesterdayValue) * 100 : 0;
+
+      setStats({
+        totalValue,
+        totalPL,
+        plPercent,
+        dailyPL,
+        lastUpdated: new Date().toLocaleString()
+      });
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Error loading friend portfolio data:", error);
+      setLoading(false);
+    }
   }, [friend.friendName]);
+
+  // Load the friend's portfolio data on mount
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Calculate average buy price for each position
   const positionsWithAvgPrice = useMemo(() => {
@@ -211,7 +308,17 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
         
         <div className="modal-header">
           <h2>{friend.friendName}'s Portfolio</h2>
-          <div className="last-updated">Last updated: {stats.lastUpdated}</div>
+          <div className="modal-actions">
+            <button 
+              className="refresh-button" 
+              onClick={() => fetchData()}
+              disabled={loading}
+              title="Refresh data"
+            >
+              ↻ Refresh
+            </button>
+            <div className="last-updated">Last updated: {stats.lastUpdated}</div>
+          </div>
         </div>
         
         {loading ? (

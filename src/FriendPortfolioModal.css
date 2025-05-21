@@ -68,6 +68,8 @@
   margin-bottom: 20px;
   border-bottom: 1px solid #333;
   padding-bottom: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-header h2 {
@@ -75,6 +77,37 @@
   font-size: 24px;
   font-weight: 700;
   color: white;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.refresh-button {
+  background-color: #333;
+  color: #ddd;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.refresh-button:hover {
+  background-color: #444;
+  color: white;
+}
+
+.refresh-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .last-updated {

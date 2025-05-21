@@ -12,8 +12,16 @@ import { ref, set, onValue, off, update, remove } from 'firebase/database';
 export const PositionsContext = createContext(null);
 
 function recalcDerivedFields(position) {
-  const totalShares = position.lots.reduce((sum, lot) => sum + Number(lot.shares), 0);
-  const totalCost = position.lots.reduce((sum, lot) => sum + Number(lot.shares) * Number(lot.price), 0);
+  // Handle undefined or null position
+  if (!position) return null;
+  
+  // Handle positions without lots or with malformed lots array
+  if (!position.lots || !Array.isArray(position.lots)) {
+    return { ...position, totalShares: 0, avgPrice: 0, lots: [] };
+  }
+  
+  const totalShares = position.lots.reduce((sum, lot) => sum + Number(lot.shares || 0), 0);
+  const totalCost = position.lots.reduce((sum, lot) => sum + Number(lot.shares || 0) * Number(lot.price || 0), 0);
   const avgPrice = totalShares ? totalCost / totalShares : 0;
   return { ...position, totalShares, avgPrice };
 }
@@ -25,8 +33,16 @@ export function PositionsProvider({ children }) {
 
   // Sync positions to localStorage for friends to see
   const syncToLocalStorage = (userPositions) => {
-    if (user) {
-      localStorage.setItem(`positions_${user}`, JSON.stringify(userPositions));
+    if (!user) return;
+    
+    try {
+      // Ensure we have a valid array to sync
+      const validPositions = Array.isArray(userPositions) ? 
+        userPositions.filter(p => p !== null && p !== undefined) : [];
+      
+      localStorage.setItem(`positions_${user}`, JSON.stringify(validPositions));
+    } catch (e) {
+      console.error("Error syncing positions to localStorage:", e);
     }
   };
 
@@ -79,56 +95,97 @@ export function PositionsProvider({ children }) {
 
   // Update a position (by id)
   const updatePosition = async (id, updates) => {
-    const userRef = ref(db, `positions/${user}/${id}`);
-    await update(userRef, updates);
+    // Ensure position exists before updating
+    const position = positions.find(p => p.id === id);
+    if (!position) {
+      console.log(`Position with id ${id} not found for updating.`);
+      return;
+    }
     
-    // Log activity for position update if ticker is provided
-    if (activityFeedContext && updates.ticker) {
-      const position = positions.find(p => p.id === id);
-      if (position) {
-        const totalAmount = position.lots.reduce((sum, lot) => (
-          sum + (Number(lot.shares) * Number(lot.price))
-        ), 0);
-        
-        await activityFeedContext.addActivity({
-          actionType: 'edit',
-          ticker: updates.ticker,
-          amount: totalAmount
-        });
+    const userRef = ref(db, `positions/${user}/${id}`);
+    
+    try {
+      await update(userRef, updates);
+      
+      // Log activity for position update if ticker is provided
+      if (activityFeedContext && updates.ticker) {
+        if (position && position.lots && Array.isArray(position.lots)) {
+          const totalAmount = position.lots.reduce((sum, lot) => (
+            sum + (Number(lot.shares || 0) * Number(lot.price || 0))
+          ), 0);
+          
+          await activityFeedContext.addActivity({
+            actionType: 'edit',
+            ticker: updates.ticker,
+            amount: totalAmount,
+            type: 'stock'
+          });
+        }
       }
+    } catch (e) {
+      console.error(`Error updating position ${id}:`, e);
     }
   };
 
   // Delete a position (by id)
   const deletePosition = async (id) => {
     const position = positions.find(p => p.id === id);
+    
+    // If position doesn't exist, just return
+    if (!position) {
+      console.log(`Position with id ${id} not found.`);
+      return;
+    }
+    
     const userRef = ref(db, `positions/${user}/${id}`);
     
     // Log activity for position deletion before deleting
-    if (activityFeedContext && position) {
-      const totalAmount = position.lots.reduce((sum, lot) => (
-        sum + (Number(lot.shares) * Number(lot.price))
-      ), 0);
-      
-      await activityFeedContext.addActivity({
-        actionType: 'sell',
-        ticker: position.ticker,
-        amount: totalAmount
-      });
+    if (activityFeedContext && position && position.lots) {
+      try {
+        const totalAmount = position.lots.reduce((sum, lot) => (
+          sum + (Number(lot.shares || 0) * Number(lot.price || 0))
+        ), 0);
+        
+        await activityFeedContext.addActivity({
+          actionType: 'sell',
+          ticker: position.ticker,
+          amount: totalAmount,
+          type: 'stock' // Add explicit type for better activity tracking
+        });
+      } catch (e) {
+        console.error("Error logging activity for delete:", e);
+      }
     }
     
-    await remove(userRef);
+    try {
+      await remove(userRef);
+    } catch (e) {
+      console.error(`Error deleting position ${id}:`, e);
+    }
   };
 
   // Add a lot to a position (by position id)
   const addLot = async (positionId, lot) => {
-    const userRef = ref(db, `positions/${user}/${positionId}/lots`);
+    // Ensure position exists
     const position = positions.find(p => p.id === positionId);
+    if (!position) {
+      console.log(`Position with id ${positionId} not found for adding lot.`);
+      return;
+    }
     
-    // Get current lots, add new lot
-    if (position) {
+    // Validate lot data
+    if (!lot || !lot.shares || !lot.price) {
+      console.error("Invalid lot data:", lot);
+      return;
+    }
+    
+    const userRef = ref(db, `positions/${user}/${positionId}/lots`);
+    
+    try {
+      // Ensure position has lots array
+      const existingLots = Array.isArray(position.lots) ? position.lots : [];
       const newLot = { ...lot, id: Date.now().toString() };
-      const lots = [...position.lots, newLot];
+      const lots = [...existingLots, newLot];
       await set(userRef, lots);
       
       // Log activity for adding a lot
@@ -138,14 +195,19 @@ export function PositionsProvider({ children }) {
         await activityFeedContext.addActivity({
           actionType: 'buy',
           ticker: position.ticker,
-          amount: amount
+          amount: amount,
+          type: 'stock'
         });
       }
+    } catch (e) {
+      console.error(`Error adding lot to position ${positionId}:`, e);
     }
   };
 
   // Derived fields for each position
-  const positionsWithDerived = positions.map(recalcDerivedFields);
+  const positionsWithDerived = positions
+    .map(recalcDerivedFields)
+    .filter(position => position !== null); // Filter out any null positions
 
   return (
     <PositionsContext.Provider value={{ positions: positionsWithDerived, addPosition, updatePosition, deletePosition, addLot }}>
