@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { AuthContext } from './AuthContext';
+import { ActivityFeedContext } from './ActivityFeedContext';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './firebase';
-import { ref, set, onValue, off, update, remove, push } from 'firebase/database';
+import { ref, set, onValue, off, update, remove } from 'firebase/database';
 
 // Types for reference
 // type Lot = { id, shares, price, date } // date = ISO string
@@ -19,7 +20,15 @@ function recalcDerivedFields(position) {
 
 export function PositionsProvider({ children }) {
   const { user } = useContext(AuthContext);
+  const activityFeedContext = useContext(ActivityFeedContext);
   const [positions, setPositions] = useState([]);
+
+  // Sync positions to localStorage for friends to see
+  const syncToLocalStorage = (userPositions) => {
+    if (user) {
+      localStorage.setItem(`positions_${user}`, JSON.stringify(userPositions));
+    }
+  };
 
   // Real-time sync with Firebase
   useEffect(() => {
@@ -29,14 +38,21 @@ export function PositionsProvider({ children }) {
       const val = snapshot.val();
       if (val) {
         // Convert object to array
-        setPositions(Object.values(val));
+        const positionsArray = Object.values(val);
+        setPositions(positionsArray);
+        
+        // Sync to localStorage for friends to view
+        syncToLocalStorage(positionsArray);
       } else {
         setPositions([]);
+        
+        // Clear localStorage if no positions
+        syncToLocalStorage([]);
       }
     };
     onValue(userRef, handleValue);
     return () => off(userRef, 'value', handleValue);
-  }, [user]);
+  }, [user, syncToLocalStorage]);
 
   // Add a new position (optionally with initial lots)
   const addPosition = async (ticker, lots = []) => {
@@ -44,31 +60,88 @@ export function PositionsProvider({ children }) {
     const newPosition = { id, ticker, lots };
     const userRef = ref(db, `positions/${user}/${id}`);
     await set(userRef, newPosition);
+    
+    // Log activity for new position
+    if (activityFeedContext && lots.length > 0) {
+      const totalAmount = lots.reduce((sum, lot) => (
+        sum + (Number(lot.shares) * Number(lot.price))
+      ), 0);
+      
+      await activityFeedContext.addActivity({
+        actionType: 'buy',
+        ticker: ticker,
+        amount: totalAmount
+      });
+    }
+    
     return id;
   };
 
   // Update a position (by id)
-  const updatePosition = (id, updates) => {
+  const updatePosition = async (id, updates) => {
     const userRef = ref(db, `positions/${user}/${id}`);
-    update(userRef, updates);
+    await update(userRef, updates);
+    
+    // Log activity for position update if ticker is provided
+    if (activityFeedContext && updates.ticker) {
+      const position = positions.find(p => p.id === id);
+      if (position) {
+        const totalAmount = position.lots.reduce((sum, lot) => (
+          sum + (Number(lot.shares) * Number(lot.price))
+        ), 0);
+        
+        await activityFeedContext.addActivity({
+          actionType: 'edit',
+          ticker: updates.ticker,
+          amount: totalAmount
+        });
+      }
+    }
   };
 
   // Delete a position (by id)
-  const deletePosition = (id) => {
+  const deletePosition = async (id) => {
+    const position = positions.find(p => p.id === id);
     const userRef = ref(db, `positions/${user}/${id}`);
-    remove(userRef);
+    
+    // Log activity for position deletion before deleting
+    if (activityFeedContext && position) {
+      const totalAmount = position.lots.reduce((sum, lot) => (
+        sum + (Number(lot.shares) * Number(lot.price))
+      ), 0);
+      
+      await activityFeedContext.addActivity({
+        actionType: 'sell',
+        ticker: position.ticker,
+        amount: totalAmount
+      });
+    }
+    
+    await remove(userRef);
   };
 
   // Add a lot to a position (by position id)
-  const addLot = (positionId, lot) => {
+  const addLot = async (positionId, lot) => {
     const userRef = ref(db, `positions/${user}/${positionId}/lots`);
+    const position = positions.find(p => p.id === positionId);
+    
     // Get current lots, add new lot
-    setPositions(prev => {
-      const pos = prev.find(p => p.id === positionId);
-      const lots = pos ? [...pos.lots, { ...lot, id: Date.now().toString() }] : [{ ...lot, id: Date.now().toString() }];
-      set(userRef, lots);
-      return prev;
-    });
+    if (position) {
+      const newLot = { ...lot, id: Date.now().toString() };
+      const lots = [...position.lots, newLot];
+      await set(userRef, lots);
+      
+      // Log activity for adding a lot
+      if (activityFeedContext) {
+        const amount = Number(lot.shares) * Number(lot.price);
+        
+        await activityFeedContext.addActivity({
+          actionType: 'buy',
+          ticker: position.ticker,
+          amount: amount
+        });
+      }
+    }
   };
 
   // Derived fields for each position

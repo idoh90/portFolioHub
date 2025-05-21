@@ -1,47 +1,46 @@
-import React, { useState, useContext, useRef } from 'react';
+import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../AuthContext';
 import './LoginPage.css';
 
 const LoginPage = () => {
+  const [username, setUsername] = useState('');
+  const [error, setError] = useState('');
   const { login } = useContext(AuthContext);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
   const navigate = useNavigate();
-  const cardRef = useRef(null);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const success = login(password);
+    setError('');
+
+    const success = await login(username);
     if (success) {
       navigate('/hub');
     } else {
-      setError(true);
-      setPassword('');
-      if (cardRef.current) {
-        cardRef.current.classList.remove('shake');
-        // trigger reflow for animation restart
-        void cardRef.current.offsetWidth;
-        cardRef.current.classList.add('shake');
-      }
+      setError('Invalid username. Only Yanai, Ido, Ofek, or Megi can login.');
     }
   };
 
   return (
-    <div className="login-bg">
-      <form className="login-card" ref={cardRef} onSubmit={handleSubmit}>
-        <h2 className="login-title">Sign In</h2>
-        <input
-          type="password"
-          className="login-input"
-          placeholder="Enter password"
-          value={password}
-          onChange={e => { setPassword(e.target.value); setError(false); }}
-          autoFocus
-        />
-        <button className="login-btn modern-button" type="submit">Enter</button>
-        {error && <div className="login-error">Invalid password</div>}
-      </form>
+    <div className="login-container">
+      <div className="login-box">
+        <h1>Portfolio Hub</h1>
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your name"
+              className="login-input"
+            />
+          </div>
+          {error && <div className="error-message">{error}</div>}
+          <button type="submit" className="login-button">
+            Login
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
