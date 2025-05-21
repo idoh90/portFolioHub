@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PositionsContext } from '../PositionsContext';
 import EditLotModal from './EditLotModal';
@@ -25,10 +25,76 @@ function formatTime(ms) {
   return `${min}:${sec.toString().padStart(2, '0')}`;
 }
 
-const PositionModal = ({ position, onClose, onDeletePosition }) => {
+// Sell Stock Modal component
+const SellPositionModal = ({ position, onClose, onSell }) => {
+  const [sellPrice, setSellPrice] = useState(position.avgPrice);
+  const [error, setError] = useState("");
+  
+  const { price: livePrice } = useQuote(position.ticker);
+  
+  // Pre-fill with live price if available
+  useEffect(() => {
+    if (livePrice) {
+      setSellPrice(livePrice);
+    }
+  }, [livePrice]);
+  
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!sellPrice || sellPrice <= 0) {
+      setError("Please enter a valid sell price");
+      return;
+    }
+    
+    onSell(position.id, Number(sellPrice));
+    onClose();
+  };
+  
+  return (
+    <div className="modal-overlay">
+      <dialog open className="edit-lot-modal sell-modal">
+        <h3>Sell {position.ticker}</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="form-row">
+            <label>
+              Sell Price:
+              <input
+                type="number"
+                step="0.01"
+                min="0.01"
+                value={sellPrice}
+                onChange={(e) => setSellPrice(e.target.value)}
+                required
+              />
+            </label>
+          </div>
+          
+          <div className="position-summary">
+            <p>Shares: {position.totalShares}</p>
+            <p>Avg. Cost: ${position.avgPrice.toFixed(2)}</p>
+            <p>Total Sale: ${(position.totalShares * sellPrice).toFixed(2)}</p>
+            <p className={sellPrice > position.avgPrice ? "profit" : "loss"}>
+              Profit/Loss: ${((sellPrice - position.avgPrice) * position.totalShares).toFixed(2)}
+            </p>
+          </div>
+          
+          {error && <div className="error-message">{error}</div>}
+          
+          <div className="button-row">
+            <button type="button" className="cancel-btn modern-button" onClick={onClose}>Cancel</button>
+            <button type="submit" className="save-btn modern-button">Confirm Sale</button>
+          </div>
+        </form>
+      </dialog>
+    </div>
+  );
+};
+
+const PositionModal = ({ position, onClose, onDeletePosition, onSellPosition }) => {
   const { addLot, updatePosition, positions } = useContext(PositionsContext);
   const [editLot, setEditLot] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showSellModal, setShowSellModal] = useState(false);
 
   // Find the latest position data from context
   const latestPosition = positions.find(p => p.id === position.id) || position;
@@ -62,6 +128,7 @@ const PositionModal = ({ position, onClose, onDeletePosition }) => {
         <div className="modal-header">
           <span className="modal-ticker">{latestPosition.ticker}</span>
           <span className="modal-actions">
+            <button className="modal-sell modern-button" onClick={() => setShowSellModal(true)}>💰</button>
             <button className="modal-delete modern-button" onClick={() => { onDeletePosition(latestPosition.id); onClose(); }}>🗑</button>
           </span>
         </div>
@@ -104,6 +171,13 @@ const PositionModal = ({ position, onClose, onDeletePosition }) => {
             lot={Object.keys(editLot).length ? editLot : undefined}
             onSave={handleSaveLot}
             onClose={() => setEditLot(null)}
+          />
+        )}
+        {showSellModal && (
+          <SellPositionModal
+            position={latestPosition}
+            onClose={() => setShowSellModal(false)}
+            onSell={onSellPosition}
           />
         )}
       </dialog>
@@ -150,7 +224,7 @@ const PositionCard = ({ position, onClick }) => {
 };
 
 const MyStocksPage = () => {
-  const { positions, deletePosition } = useContext(PositionsContext);
+  const { positions, deletePosition, sellPosition, takenPL } = useContext(PositionsContext);
   const navigate = useNavigate();
   const [modalPosition, setModalPosition] = useState(null);
   const canAdd = positions.length < MAX_POSITIONS;
@@ -159,6 +233,15 @@ const MyStocksPage = () => {
     <div className="mystocks-container">
       <button className="back-btn modern-button" onClick={() => navigate('/hub')} title="Back">←</button>
       <h1 className="mystocks-title">My Stocks</h1>
+      
+      <div className="taken-pl">
+        <span>Taken P/L:</span> 
+        <span className={takenPL >= 0 ? "pos" : "neg"}>
+          {takenPL >= 0 ? "+" : ""}
+          ${takenPL.toFixed(2)}
+        </span>
+      </div>
+      
       {positions.length === 0 ? (
         <div className="zero-state-card">No positions yet • Add your first stock</div>
       ) : (
@@ -170,7 +253,12 @@ const MyStocksPage = () => {
       )}
       <button className="floating-add-btn modern-button" onClick={() => navigate('/new-position')} disabled={!canAdd}>＋</button>
       {!canAdd && <div className="max-stocks-warning">You can only track up to 5 stocks at a time.</div>}
-      {modalPosition && <PositionModal position={modalPosition} onClose={() => setModalPosition(null)} onDeletePosition={deletePosition} />}
+      {modalPosition && <PositionModal 
+        position={modalPosition} 
+        onClose={() => setModalPosition(null)} 
+        onDeletePosition={deletePosition}
+        onSellPosition={sellPosition}
+      />}
     </div>
   );
 };

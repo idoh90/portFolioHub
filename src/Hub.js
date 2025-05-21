@@ -8,6 +8,8 @@ import './Hub.css';
 import FriendPortfolioModal from './FriendPortfolioModal';
 import ActivityFeed from './ActivityFeed';
 import { OptionsContext } from './OptionsContext';
+import NotificationButton from './components/NotificationButton';
+import './components/NotificationButton.css';
 
 // Utility to calculate average buy price for a ticker from transactions
 function calculateAvgBuyPrice(transactions, ticker) {
@@ -1172,9 +1174,12 @@ const FriendsGroupStats = ({ friends, currentUser }) => {
 
 const Hub = () => {
   const { user, logout } = useContext(AuthContext);
-  const { positions } = useContext(PositionsContext);
+  const { positions, takenPL: stockTakenPL } = useContext(PositionsContext);
+  const { options, takenPL: optionsTakenPL } = useContext(OptionsContext);
   const navigate = useNavigate();
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(Date.now());
+  const [selectedFriend, setSelectedFriend] = useState(null);
+  const [showNotificationButton, setShowNotificationButton] = useState(false);
 
   // Initialize friends' data if needed and clean up sold items
   useEffect(() => {
@@ -1182,6 +1187,15 @@ const Hub = () => {
     purgeAllMockData();
     // Then initialize any missing data structures
     ensureFriendDataInitialized();
+  }, []);
+  
+  // Check if notifications can be shown
+  useEffect(() => {
+    // Only show notification button if notifications are supported
+    // and permission hasn't been permanently denied
+    if ('Notification' in window && Notification.permission !== 'denied') {
+      setShowNotificationButton(true);
+    }
   }, []);
   
   // Track online status for current user
@@ -1220,6 +1234,11 @@ const Hub = () => {
     <div className="hub-container" key={refreshKey}>
       <div className="hub-padding-top" />
       <button className="logout-btn modern-button" onClick={handleLogout} title="Logout">⎋</button>
+      {showNotificationButton && (
+        <div className="notification-button-container">
+          <NotificationButton />
+        </div>
+      )}
       <div className="financial-summary-vertical">
         <div className="total-value-block">
           <div className="summary-label">Total Value</div>
@@ -1236,6 +1255,28 @@ const Hub = () => {
             <div className="summary-label">Daily P/L</div>
             <div className={`summary-value bold ${getColor(dailyPL)}`}>
               {hasLiveData ? `${dailyPL >= 0 ? '+' : ''}${dailyPL.toFixed(2)}%` : '--'}
+            </div>
+          </div>
+        </div>
+        <div className="summary-row">
+          <div className="summary-block">
+            <div className="summary-label">Stocks Taken P/L</div>
+            <div className={`summary-value bold ${getColor(stockTakenPL)}`}>
+              {`${stockTakenPL >= 0 ? '+' : ''}${formatCurrency(stockTakenPL)}`}
+            </div>
+          </div>
+          <div className="summary-block">
+            <div className="summary-label">Options Taken P/L</div>
+            <div className={`summary-value bold ${getColor(optionsTakenPL)}`}>
+              {`${optionsTakenPL >= 0 ? '+' : ''}${formatCurrency(optionsTakenPL)}`}
+            </div>
+          </div>
+        </div>
+        <div className="summary-row">
+          <div className="summary-block">
+            <div className="summary-label">Total Taken P/L</div>
+            <div className={`summary-value bold ${getColor(stockTakenPL + optionsTakenPL)}`}>
+              {`${(stockTakenPL + optionsTakenPL) >= 0 ? '+' : ''}${formatCurrency(stockTakenPL + optionsTakenPL)}`}
             </div>
           </div>
         </div>

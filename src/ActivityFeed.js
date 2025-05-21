@@ -17,7 +17,8 @@ const ActivityFeed = () => {
           timestamp: activity.timestamp,
           amount: activity.amount,
           type: activity.assetType || 'stock', // Default to stock if not specified
-          optionType: activity.optionType || null // Only for options
+          optionType: activity.optionType || null, // Only for options
+          profitLoss: activity.profitLoss || null // For sold positions
         };
       });
       
@@ -66,6 +67,8 @@ const ActivityFeed = () => {
         return '🔴';
       case 'edit':
         return '✏️';
+      case 'delete':
+        return '🗑️';
       default:
         return '•';
     }
@@ -79,6 +82,8 @@ const ActivityFeed = () => {
         return 'sold';
       case 'edit':
         return 'edited';
+      case 'delete':
+        return 'deleted';
       default:
         return actionType;
     }
@@ -110,7 +115,19 @@ const ActivityFeed = () => {
                   <div className="activity-time">{formatTime(activity.timestamp)}</div>
                 </div>
               </div>
-              <span className="activity-amount">{formatAmount(activity.amount)}</span>
+              <span className="activity-amount">
+                {formatAmount(activity.amount)}
+                {activity.actionType === 'sell' && activity.profitLoss && (
+                  <span className={`activity-pl ${activity.profitLoss >= 0 ? 'profit' : 'loss'}`}>
+                    {activity.profitLoss > 0 ? ' +' : ' '}
+                    {activity.profitLoss.toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                      maximumFractionDigits: 0
+                    })}
+                  </span>
+                )}
+              </span>
             </div>
           ))
         ) : (

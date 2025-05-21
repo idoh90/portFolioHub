@@ -1,0 +1,53 @@
+.notification-button {
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-button.subscribe {
+  background-color: #4caf50;
+  color: white;
+}
+
+.notification-button.subscribe:hover {
+  background-color: #43a047;
+}
+
+.notification-button.unsubscribe {
+  background-color: #f44336;
+  color: white;
+}
+
+.notification-button.unsubscribe:hover {
+  background-color: #e53935;
+}
+
+.notification-button.muted {
+  background-color: #9e9e9e;
+  color: white;
+}
+
+.notification-button.muted:hover {
+  background-color: #757575;
+}
+
+.notification-button:disabled {
+  background-color: #bdbdbd;
+  cursor: not-allowed;
+}
+
+.notification-info {
+  font-size: 0.9rem;
+  color: #f44336;
+  margin: 8px 0;
+  padding: 8px;
+  border-radius: 4px;
+  background-color: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+} 

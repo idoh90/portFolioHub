@@ -660,4 +660,11 @@
 .refresh-icon {
   font-size: 1.1rem;
   display: inline-block;
+}
+
+.notification-button-container {
+  position: absolute;
+  top: 15px;
+  right: 60px; /* Position it to the left of the logout button */
+  z-index: 100;
 } 

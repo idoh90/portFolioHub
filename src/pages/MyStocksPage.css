@@ -347,4 +347,86 @@
   font-weight: 700;
   margin-top: 1.2rem;
   text-align: center;
+}
+
+.modal-sell {
+  background-color: #ffc107;
+  color: #333;
+  margin-right: 8px;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.modal-sell:hover {
+  background-color: #ffdb58;
+}
+
+.sell-modal {
+  width: 360px;
+  max-width: 95vw;
+  background-color: #1e2732;
+  color: #e0e0e0;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #3a4655;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.sell-modal h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.position-summary {
+  background-color: #2a3747;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+}
+
+.position-summary p {
+  margin: 8px 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.position-summary .profit {
+  color: #4caf50;
+}
+
+.position-summary .loss {
+  color: #f44336;
+}
+
+.taken-pl {
+  background-color: #2a3747;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.taken-pl .pos {
+  color: #4caf50;
+}
+
+.taken-pl .neg {
+  color: #f44336;
+}
+
+.error-message {
+  color: #f44336;
+  margin: 10px 0;
+  font-size: 0.9rem;
 } 

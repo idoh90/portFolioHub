@@ -97,6 +97,24 @@
   font-weight: 600;
   color: #b0b8c1;
   flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.activity-pl {
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.activity-pl.profit {
+  color: #4caf50;
+}
+
+.activity-pl.loss {
+  color: #f44336;
 }
 
 .no-activities {

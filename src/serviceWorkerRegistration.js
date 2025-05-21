@@ -16,7 +16,7 @@ const isLocalhost = Boolean(
 );
 
 export function register(config) {
-  if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator) {
     // The URL constructor is available in all browsers that support SW.
     const publicUrl = new URL(process.env.PUBLIC_URL, window.location.href);
     if (publicUrl.origin !== window.location.origin) {
@@ -87,9 +87,32 @@ function registerValidSW(swUrl, config) {
           }
         };
       };
+      
+      // Check if Push API is supported and permission has been granted
+      if ('PushManager' in window && Notification.permission === 'granted') {
+        console.log('Push notifications are supported. Checking subscription status...');
+        checkPushSubscription(registration);
+      }
     })
     .catch((error) => {
       console.error('Error during service worker registration:', error);
+    });
+}
+
+// Function to check if the user is already subscribed to push notifications
+function checkPushSubscription(registration) {
+  registration.pushManager.getSubscription()
+    .then(subscription => {
+      if (subscription) {
+        console.log('User is already subscribed to push notifications');
+        // Update subscription on server if needed
+      } else {
+        console.log('User is not subscribed to push notifications');
+        // Don't automatically subscribe here - let the user choose from the UI
+      }
+    })
+    .catch(error => {
+      console.error('Error checking push subscription:', error);
     });
 }
 

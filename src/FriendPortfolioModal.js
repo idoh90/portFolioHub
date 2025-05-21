@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './FriendPortfolioModal.css';
+import { getQuote } from './api/quote';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -31,6 +32,10 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
   const [activeTab, setActiveTab] = useState('stocks');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [takenPL, setTakenPL] = useState({
+    stocks: 0,
+    options: 0
+  });
   const [stats, setStats] = useState({
     totalValue: 0,
     totalPL: 0,
@@ -64,6 +69,30 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
       let totalValue = 0;
       let totalCost = 0;
       let yesterdayValue = 0;
+
+      // Get taken P/L values from localStorage
+      try {
+        // Try to fetch taken P/L values from localStorage
+        const stocksTakenPLKey = `takenPL_${friend.friendName}`;
+        const optionsTakenPLKey = `optionsTakenPL_${friend.friendName}`;
+        
+        const stocksTakenPL = localStorage.getItem(stocksTakenPLKey) ? 
+          Number(localStorage.getItem(stocksTakenPLKey)) : 0;
+        
+        const optionsTakenPL = localStorage.getItem(optionsTakenPLKey) ? 
+          Number(localStorage.getItem(optionsTakenPLKey)) : 0;
+        
+        setTakenPL({
+          stocks: stocksTakenPL,
+          options: optionsTakenPL
+        });
+      } catch (error) {
+        console.error("Error fetching taken P/L values:", error);
+        setTakenPL({
+          stocks: 0,
+          options: 0
+        });
+      }
 
       // First check activity feed for recent sells
       try {
@@ -114,11 +143,29 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
               });
             }
           }
+
+          // Fetch current stock prices for each position
+          const updatedPositions = await Promise.all(filteredPositions.map(async position => {
+            try {
+              // Use the useQuote API to fetch current prices
+              const tickerPrice = await getQuote(position.ticker);
+              if (tickerPrice && tickerPrice > 0) {
+                return {
+                  ...position,
+                  currentPrice: tickerPrice
+                };
+              }
+              return position;
+            } catch (e) {
+              console.error(`Error fetching price for ${position.ticker}:`, e);
+              return position;
+            }
+          }));
           
-          setPositions(filteredPositions);
+          setPositions(updatedPositions);
 
           // Calculate portfolio stats from real position data
-          filteredPositions.forEach(position => {
+          updatedPositions.forEach(position => {
             if (!position.lots) return;
             
             position.lots.forEach(lot => {
@@ -126,7 +173,7 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
               
               const shares = Number(lot.shares) || 0;
               const buyPrice = Number(lot.price) || 0;
-              const currentPrice = Number(lot.currentPrice) || buyPrice;
+              const currentPrice = Number(position.currentPrice) || buyPrice;
               
               if (shares <= 0 || buyPrice <= 0) return; // Skip invalid data
               
@@ -224,6 +271,16 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
       setLoading(false);
     }
   }, [friend.friendName]);
+
+  // Helper function to get real-time stock prices
+  const getStockPrice = async (ticker) => {
+    try {
+      return await getQuote(ticker);
+    } catch (error) {
+      console.error(`Error fetching price for ${ticker}:`, error);
+      return 0;
+    }
+  };
 
   // Load the friend's portfolio data on mount
   useEffect(() => {
@@ -348,6 +405,31 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
                   <div className="label">Daily P/L</div>
                   <div className={`value ${stats.dailyPL >= 0 ? 'pos' : 'neg'}`}>
                     {stats.dailyPL >= 0 ? '+' : ''}{stats.dailyPL.toFixed(2)}%
+                  </div>
+                </div>
+              </div>
+              
+              <div className="snapshot-row">
+                <div className="snapshot-item">
+                  <div className="label">Stocks Taken P/L</div>
+                  <div className={`value ${takenPL.stocks >= 0 ? 'pos' : 'neg'}`}>
+                    {takenPL.stocks >= 0 ? '+' : ''}{formatCurrency(takenPL.stocks)}
+                  </div>
+                </div>
+                
+                <div className="snapshot-item">
+                  <div className="label">Options Taken P/L</div>
+                  <div className={`value ${takenPL.options >= 0 ? 'pos' : 'neg'}`}>
+                    {takenPL.options >= 0 ? '+' : ''}{formatCurrency(takenPL.options)}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="snapshot-row">
+                <div className="snapshot-item">
+                  <div className="label">Total Taken P/L</div>
+                  <div className={`value ${(takenPL.stocks + takenPL.options) >= 0 ? 'pos' : 'neg'}`}>
+                    {(takenPL.stocks + takenPL.options) >= 0 ? '+' : ''}{formatCurrency(takenPL.stocks + takenPL.options)}
                   </div>
                 </div>
               </div>
