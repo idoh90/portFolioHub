@@ -17,102 +17,54 @@ function calculateAvgBuyPrice(transactions, ticker) {
   return totalShares ? (totalCost / totalShares) : 0;
 }
 
-// Mock Data
-const mockArticles = [
-  {
-    headline: 'Stocks Rally as Tech Leads Market Gains',
-    source: 'Bloomberg',
-    url: 'https://bloomberg.com/article1',
-  },
-  {
-    headline: 'Crypto Surges After Regulatory Clarity',
-    source: 'CoinDesk',
-    url: 'https://coindesk.com/article2',
-  },
-  {
-    headline: 'Fed Signals No Rate Hike in Q3',
-    source: 'Reuters',
-    url: 'https://reuters.com/article3',
-  },
-  {
-    headline: 'AI Startups Attract Record Funding',
-    source: 'TechCrunch',
-    url: 'https://techcrunch.com/article4',
-  },
-  {
-    headline: 'Oil Prices Dip Amid Global Uncertainty',
-    source: 'WSJ',
-    url: 'https://wsj.com/article5',
-  },
-];
-
-const mockFriends = [
-  {
-    friendName: 'Yanai',
-    portfolioValue: 45200,
-    transactions: [
-      { ticker: 'AAPL', shares: 10, price: 140, type: 'buy' },
-      { ticker: 'AAPL', shares: 5, price: 150, type: 'buy' },
-      { ticker: 'TSLA', shares: 7, price: 200, type: 'buy' },
-      { ticker: 'TSLA', shares: 3, price: 220, type: 'buy' },
-      { ticker: 'NVDA', shares: 4, price: 370, type: 'buy' },
-      { ticker: 'NVDA', shares: 2, price: 400, type: 'buy' },
-    ],
-    top3Positions: [
-      { ticker: 'AAPL', percent: 32 },
-      { ticker: 'TSLA', percent: 21 },
-      { ticker: 'NVDA', percent: 14 },
-    ],
-  },
-  {
-    friendName: 'Ido',
-    portfolioValue: 38900,
-    transactions: [
-      { ticker: 'AMZN', shares: 8, price: 115, type: 'buy' },
-      { ticker: 'AMZN', shares: 4, price: 130, type: 'buy' },
-      { ticker: 'GOOGL', shares: 6, price: 95, type: 'buy' },
-      { ticker: 'GOOGL', shares: 3, price: 105, type: 'buy' },
-      { ticker: 'META', shares: 5, price: 230, type: 'buy' },
-      { ticker: 'META', shares: 2, price: 260, type: 'buy' },
-    ],
-    top3Positions: [
-      { ticker: 'AMZN', percent: 28 },
-      { ticker: 'GOOGL', percent: 19 },
-      { ticker: 'META', percent: 17 },
-    ],
-  },
-  {
-    friendName: 'Ofek',
-    portfolioValue: 51200,
-    transactions: [
-      { ticker: 'MSFT', shares: 12, price: 250, type: 'buy' },
-      { ticker: 'MSFT', shares: 6, price: 270, type: 'buy' },
-      { ticker: 'NFLX', shares: 3, price: 330, type: 'buy' },
-      { ticker: 'NFLX', shares: 2, price: 350, type: 'buy' },
-      { ticker: 'AMD', shares: 7, price: 105, type: 'buy' },
-      { ticker: 'AMD', shares: 3, price: 120, type: 'buy' },
-    ],
-    top3Positions: [
-      { ticker: 'MSFT', percent: 35 },
-      { ticker: 'NFLX', percent: 18 },
-      { ticker: 'AMD', percent: 13 },
-    ],
-  },
-  {
-    friendName: 'Megi',
-    portfolioValue: 47000,
-    transactions: [
-      { ticker: 'AAPL', shares: 8, price: 142, type: 'buy' },
-      { ticker: 'TSLA', shares: 6, price: 215, type: 'buy' },
-      { ticker: 'NVDA', shares: 5, price: 390, type: 'buy' },
-    ],
-    top3Positions: [
-      { ticker: 'AAPL', percent: 30 },
-      { ticker: 'TSLA', percent: 22 },
-      { ticker: 'NVDA', percent: 15 },
-    ],
-  },
-];
+// Utility function to ensure friend data is saved properly for viewing
+const ensureFriendDataInitialized = () => {
+  const allAvailableUsers = ['Yanai', 'Ido', 'Ofek', 'Megi'];
+  
+  // For each user, check if they have positions and options data
+  allAvailableUsers.forEach(userName => {
+    // Check positions
+    if (!localStorage.getItem(`positions_${userName}`)) {
+      // Initialize empty positions array
+      localStorage.setItem(`positions_${userName}`, JSON.stringify([]));
+    }
+    
+    // Check options
+    if (!localStorage.getItem(`options_${userName}`)) {
+      // Initialize empty options array
+      localStorage.setItem(`options_${userName}`, JSON.stringify([]));
+    }
+    
+    // Add sample options for Ofek if none exist (for testing only)
+    if (userName === 'Ofek' && localStorage.getItem(`options_${userName}`) === '[]') {
+      const sampleOptions = [
+        {
+          id: 'sample-option-1',
+          ticker: 'AAPL',
+          type: 'CALL',
+          direction: 'LONG',
+          contracts: 2,
+          strike: 175,
+          premium: 5.25,
+          expiration: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+          tradeDate: new Date().toISOString()
+        },
+        {
+          id: 'sample-option-2',
+          ticker: 'MSFT',
+          type: 'PUT',
+          direction: 'SHORT',
+          contracts: 1,
+          strike: 320,
+          premium: 7.80,
+          expiration: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days from now
+          tradeDate: new Date().toISOString()
+        }
+      ];
+      localStorage.setItem(`options_${userName}`, JSON.stringify(sampleOptions));
+    }
+  });
+};
 
 // Custom hook to manage user's online status
 function useOnlineStatus(username) {
@@ -122,7 +74,12 @@ function useOnlineStatus(username) {
     // Update last online time when component mounts (user enters site)
     const updateLastOnline = () => {
       const timestamp = new Date().toISOString();
+      
+      // Store in localStorage to persist across browser sessions
       localStorage.setItem(`lastOnline_${username}`, timestamp);
+      
+      // Use sessionStorage to mark active status in current session
+      sessionStorage.setItem('currentlyActive', 'true');
     };
 
     // Update on mount (when user enters site)
@@ -145,6 +102,9 @@ function useOnlineStatus(username) {
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
+      // Still update the timestamp on unmount but don't clear from localStorage
+      // This ensures the timestamp persists even after the user leaves
+      updateLastOnline();
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -158,8 +118,15 @@ function useLastOnlineTime(username) {
 
   useEffect(() => {
     const getLastOnline = () => {
-      const timestamp = localStorage.getItem(`lastOnline_${username}`);
-      setLastOnline(timestamp ? new Date(timestamp) : null);
+      // Use sessionStorage to track current session status
+      let timestamp = localStorage.getItem(`lastOnline_${username}`);
+      
+      // Ensure we're getting the persistent value from localStorage, not the session-specific one
+      if (timestamp) {
+        setLastOnline(new Date(timestamp));
+      } else {
+        setLastOnline(null);
+      }
     };
 
     // Get initial value
@@ -200,13 +167,122 @@ function formatTimeSince(date) {
   return Math.floor(seconds) + "s ago";
 }
 
-// Data hooks (stubs)
+// Data hooks
 export function useNews() {
-  return mockArticles;
+  // Replace mock articles with fetched or stored real data
+  const [articles, setArticles] = useState([]);
+  
+  useEffect(() => {
+    // In a real implementation, this would fetch from an API
+    // For now, we'll create some simple articles based on recent stock activity
+    const generateArticles = () => {
+      // Check localStorage for recent activities
+      try {
+        const allUsers = ['Yanai', 'Ido', 'Ofek', 'Megi'];
+        const recentArticles = [];
+        
+        // Generate articles based on recent user activity
+        allUsers.forEach(user => {
+          // Check for positions
+          const posKey = `positions_${user}`;
+          const posData = localStorage.getItem(posKey);
+          if (posData) {
+            try {
+              const positions = JSON.parse(posData);
+              if (positions && positions.length > 0) {
+                // Take the most recent position (simplified approach)
+                const latestPosition = positions[positions.length - 1];
+                if (latestPosition && latestPosition.ticker) {
+                  recentArticles.push({
+                    headline: `${user} Added ${latestPosition.ticker} to Portfolio`,
+                    source: 'PortfolioHub',
+                    url: '#'
+                  });
+                }
+              }
+            } catch (e) {
+              console.error("Error parsing positions data for articles:", e);
+            }
+          }
+          
+          // Check for options
+          const optKey = `options_${user}`;
+          const optData = localStorage.getItem(optKey);
+          if (optData) {
+            try {
+              const options = JSON.parse(optData);
+              if (options && options.length > 0) {
+                // Take the most recent option (simplified approach)
+                const latestOption = options[options.length - 1];
+                if (latestOption && latestOption.ticker) {
+                  recentArticles.push({
+                    headline: `${user} Added ${latestOption.ticker} ${latestOption.type} Option`,
+                    source: 'PortfolioHub',
+                    url: '#'
+                  });
+                }
+              }
+            } catch (e) {
+              console.error("Error parsing options data for articles:", e);
+            }
+          }
+        });
+        
+        // Add some market articles if we don't have enough
+        if (recentArticles.length < 3) {
+          recentArticles.push({
+            headline: 'Markets Rally on Positive Economic Data',
+            source: 'PortfolioHub News',
+            url: '#'
+          });
+          recentArticles.push({
+            headline: 'Tech Stocks Lead Market Gains',
+            source: 'PortfolioHub News',
+            url: '#'
+          });
+        }
+        
+        setArticles(recentArticles);
+      } catch (error) {
+        console.error("Error generating articles:", error);
+        // Fallback to basic articles
+        setArticles([
+          {
+            headline: 'Markets Update: Recent Trends and Analysis',
+            source: 'PortfolioHub News',
+            url: '#'
+          },
+          {
+            headline: 'Top Performing Stocks This Week',
+            source: 'PortfolioHub News',
+            url: '#'
+          }
+        ]);
+      }
+    };
+    
+    generateArticles();
+    // Refresh articles every 5 minutes
+    const interval = setInterval(generateArticles, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return articles;
 }
 
 export function useFriends() {
-  return mockFriends;
+  // This was already updated to use real data
+  // Instead of returning mock data, get the list of valid users
+  // This should match the possible usernames in the app
+  const allAvailableUsers = ['Yanai', 'Ido', 'Ofek', 'Megi'];
+  
+  // Initialize data with all available users
+  const friendsData = allAvailableUsers.map(friendName => {
+    return { friendName };
+  });
+  
+  return friendsData.map(friend => friend.friendName);
 }
 
 const formatCurrency = (value) =>
@@ -404,7 +480,8 @@ function useFriendPortfolioStats(friendName) {
       const optionsData = localStorage.getItem(key);
       if (!optionsData) return [];
       
-      return JSON.parse(optionsData);
+      const parsedOptions = JSON.parse(optionsData);
+      return Array.isArray(parsedOptions) ? parsedOptions : [];
     } catch (error) {
       console.error(`Error loading ${friendName}'s options:`, error);
       return [];
@@ -457,30 +534,53 @@ function useFriendPortfolioStats(friendName) {
     });
 
     // Calculate option values
-    options.forEach(opt => {
-      const quote = quotes[opt.ticker];
-      if (!quote || quote.loading || quote.price === null) {
-        hasLiveData = false;
+    if (options.length > 0) {
+      let optionsBlock = {
+        totalValue: 0,
+        ticker: 'OPTIONS'
+      };
+      
+      options.forEach(opt => {
+        const quote = quotes[opt.ticker];
+        if (!quote || quote.loading || quote.price === null) {
+          hasLiveData = false;
+        }
+        
+        try {
+          const contracts = Number(opt.contracts || 0);
+          const premium = Number(opt.premium || 0);
+          const strike = Number(opt.strike || 0);
+          
+          // Basic option value calculation (simplified)
+          // A real implementation would use proper options pricing formulas
+          const contractMultiplier = 100; // Each contract is for 100 shares
+          const optionValue = contracts * premium * contractMultiplier;
+          const optionCost = contracts * premium * contractMultiplier;
+          const optionYesterdayValue = optionValue * 0.99; // Simple approximation
+          
+          totalValue += optionValue;
+          totalCost += optionCost;
+          yesterdayValue += optionYesterdayValue;
+          
+          optionsBlock.totalValue += optionValue;
+          
+          // Track individual large options
+          const optType = `${opt.ticker} ${opt.type}`;
+          if (optionValue > biggestStockValue) {
+            biggestStockValue = optionValue;
+            biggestStock = optType;
+          }
+        } catch (e) {
+          console.error(`Error calculating value for option:`, opt, e);
+        }
+      });
+      
+      // If all options together are the biggest position
+      if (optionsBlock.totalValue > biggestStockValue && options.length > 1) {
+        biggestStockValue = optionsBlock.totalValue;
+        biggestStock = 'OPTIONS';
       }
-      const contracts = Number(opt.contracts);
-      const premium = Number(opt.premium);
-      const currentPrice = quote?.price || premium;
-      
-      // For options, we'll use a simple approximation of current value
-      // In a real app, you'd want to use proper option pricing models
-      const optionValue = contracts * currentPrice * 100;
-      const optionCost = contracts * premium * 100;
-      const optionYesterdayValue = contracts * (currentPrice * 0.99) * 100;
-      
-      totalValue += optionValue;
-      totalCost += optionCost;
-      yesterdayValue += optionYesterdayValue;
-      
-      if (optionValue > biggestStockValue) {
-        biggestStockValue = optionValue;
-        biggestStock = `${opt.ticker} ${opt.type}`;
-      }
-    });
+    }
 
     const totalPL = totalValue - totalCost;
     const plPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
@@ -501,18 +601,56 @@ function useFriendPortfolioStats(friendName) {
   return stats;
 }
 
-// Updated Friend card component with real last online time
+// Updated Friend card component with real last online time and options display
 const FriendCard = ({ friendName }) => {
   const stats = useFriendPortfolioStats(friendName);
   const [showModal, setShowModal] = useState(false);
   const lastOnlineTime = useLastOnlineTime(friendName);
+  const [friendOptions, setFriendOptions] = useState([]);
+  const [totalOptionsValue, setTotalOptionsValue] = useState(0);
+  
+  // Get friend's options
+  useEffect(() => {
+    try {
+      const optionsKey = `options_${friendName}`;
+      const optionsData = localStorage.getItem(optionsKey);
+      if (optionsData) {
+        const parsedOptions = JSON.parse(optionsData);
+        if (Array.isArray(parsedOptions)) {
+          setFriendOptions(parsedOptions);
+          
+          // Calculate total options value
+          let optionsValue = 0;
+          parsedOptions.forEach(option => {
+            const contracts = Number(option.contracts || 0);
+            const premium = Number(option.premium || 0);
+            optionsValue += contracts * premium * 100; // Each contract is 100 shares
+          });
+          setTotalOptionsValue(optionsValue);
+        } else {
+          setFriendOptions([]);
+          setTotalOptionsValue(0);
+        }
+      } else {
+        setFriendOptions([]);
+        setTotalOptionsValue(0);
+      }
+    } catch (error) {
+      console.error(`Error loading options for ${friendName}:`, error);
+      setFriendOptions([]);
+      setTotalOptionsValue(0);
+    }
+  }, [friendName]);
+  
+  // Calculate combined portfolio value including options
+  const combinedValue = stats.hasLiveData ? stats.totalValue + totalOptionsValue : 0;
   
   return (
     <>
       <div className="friend-card" onClick={() => setShowModal(true)}>
         <div className="friend-name">{friendName}</div>
         <div className="friend-portfolio-value">
-          {stats.hasLiveData ? formatCurrency(stats.totalValue) : '--'}
+          {stats.hasLiveData ? formatCurrency(combinedValue) : '--'}
         </div>
         <div className="friend-positions">
           <div className="friend-position">
@@ -528,12 +666,33 @@ const FriendCard = ({ friendName }) => {
             </span>
           </div>
         </div>
+        
         {stats.biggestStock && (
           <div className="friend-biggest-stock">
             <span>Biggest: <b>{stats.biggestStock}</b></span>
             <span>{stats.hasLiveData ? formatCurrency(stats.biggestStockValue) : '--'}</span>
           </div>
         )}
+        
+        {/* Display friend's options */}
+        {friendOptions.length > 0 && (
+          <div className="friend-options">
+            <span>Options: {friendOptions.length}</span>
+            <div className="friend-options-preview">
+              {friendOptions.slice(0, 2).map((option, idx) => (
+                <div key={idx} className="friend-recent-option">
+                  <span className={option.type === 'CALL' ? 'call-option' : 'put-option'}>
+                    {option.ticker} {option.type} ${option.strike}
+                  </span>
+                </div>
+              ))}
+              {friendOptions.length > 2 && (
+                <div className="friend-options-more">+{friendOptions.length - 2} more</div>
+              )}
+            </div>
+          </div>
+        )}
+        
         <div className="friend-last-online">
           <span>Last online: {formatTimeSince(lastOnlineTime)}</span>
         </div>
@@ -570,7 +729,7 @@ const FriendsPortfolios = ({ friends }) => {
 };
 
 // New FriendsGroupStats component
-const FriendsGroupStats = ({ friends }) => {
+const FriendsGroupStats = ({ friends, currentUser }) => {
   const [stats, setStats] = useState({
     mostProfitable: { name: '', value: 0 },
     bestDailyGainer: { name: '', value: 0 },
@@ -593,25 +752,26 @@ const FriendsGroupStats = ({ friends }) => {
       let worstDay = { name: '', value: 0 };
       let dataFound = false;
 
-      // Process each friend's portfolio data from localStorage
+      // Process each user's portfolio data from localStorage
       friends.forEach(friendName => {
-        // Try to get positions from localStorage first
-        const storedPositionsStr = localStorage.getItem(`positions_${friendName}`);
-        
         try {
-          // If localStorage data exists, use it
+          // Try to get positions and options from localStorage
+          const storedPositionsStr = localStorage.getItem(`positions_${friendName}`);
+          const storedOptionsStr = localStorage.getItem(`options_${friendName}`);
+          
+          // Initialize counters and stats for this friend
+          let totalPnl = 0;
+          let dailyChange = 0;
+          const uniqueStocks = new Set();
+          let lastWeekTrades = 0;
+          let optionsCount = 0;
+
+          // Process positions data if it exists
           if (storedPositionsStr) {
             const storedPositions = JSON.parse(storedPositionsStr);
             if (Array.isArray(storedPositions) && storedPositions.length > 0) {
               dataFound = true;
               
-              // Calculate total P/L
-              let totalPnl = 0;
-              let dailyChange = 0;
-              const uniqueStocks = new Set();
-              let lastWeekTrades = 0;
-              let optionsCount = 0;
-
               storedPositions.forEach(position => {
                 if (!position.lots || position.lots.length === 0) return;
 
@@ -652,30 +812,46 @@ const FriendsGroupStats = ({ friends }) => {
                   }
                 });
               });
-
-              // Update stats if this friend has better values
-              if (totalPnl > mostProfitable.value) {
-                mostProfitable = { name: friendName, value: totalPnl };
-              }
-
-              if (dailyChange > 0 && dailyChange > bestDailyGainer.value) {
-                bestDailyGainer = { name: friendName, value: dailyChange };
-              } else if (dailyChange < 0 && dailyChange < worstDay.value) {
-                worstDay = { name: friendName, value: dailyChange };
-              }
-
-              if (uniqueStocks.size > mostDiversified.count) {
-                mostDiversified = { name: friendName, count: uniqueStocks.size };
-              }
-
-              if (lastWeekTrades > mostActive.count) {
-                mostActive = { name: friendName, count: lastWeekTrades };
-              }
-
-              if (optionsCount > optionsEnthusiast.count) {
-                optionsEnthusiast = { name: friendName, count: optionsCount };
-              }
             }
+          }
+          
+          // Process options data if it exists
+          if (storedOptionsStr) {
+            const storedOptions = JSON.parse(storedOptionsStr);
+            if (Array.isArray(storedOptions) && storedOptions.length > 0) {
+              dataFound = true;
+              
+              // Add options to the count for the options enthusiast stat
+              optionsCount += storedOptions.length;
+              
+              // Add option tickers to unique stocks set
+              storedOptions.forEach(option => {
+                uniqueStocks.add(option.ticker);
+              });
+            }
+          }
+
+          // Update stats if this friend has better values
+          if (totalPnl > mostProfitable.value) {
+            mostProfitable = { name: friendName, value: totalPnl };
+          }
+
+          if (dailyChange > 0 && dailyChange > bestDailyGainer.value) {
+            bestDailyGainer = { name: friendName, value: dailyChange };
+          } else if (dailyChange < 0 && dailyChange < worstDay.value) {
+            worstDay = { name: friendName, value: dailyChange };
+          }
+
+          if (uniqueStocks.size > mostDiversified.count) {
+            mostDiversified = { name: friendName, count: uniqueStocks.size };
+          }
+
+          if (lastWeekTrades > mostActive.count) {
+            mostActive = { name: friendName, count: lastWeekTrades };
+          }
+
+          if (optionsCount > optionsEnthusiast.count) {
+            optionsEnthusiast = { name: friendName, count: optionsCount };
           }
         } catch (error) {
           console.error(`Error processing friend stats for ${friendName}:`, error);
@@ -699,6 +875,8 @@ const FriendsGroupStats = ({ friends }) => {
   const formatCurrency = (value) =>
     value.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+  const isCurrentUser = (name) => name === currentUser;
+
   if (!hasData) {
     return (
       <div className="friends-group-stats no-data">
@@ -715,63 +893,63 @@ const FriendsGroupStats = ({ friends }) => {
       <h3>Group Stats</h3>
       <div className="stats-grid">
         {stats.mostProfitable.name && (
-          <div className="stat-card">
+          <div className={`stat-card ${isCurrentUser(stats.mostProfitable.name) ? 'current-user-stat' : ''}`}>
             <div className="stat-emoji">🔥</div>
-            <div className="stat-title">Most Profitable Friend</div>
+            <div className="stat-title">Most Profitable</div>
             <div className="stat-value">
-              📈 {stats.mostProfitable.name} has the highest total P/L: 
+              📈 {isCurrentUser(stats.mostProfitable.name) ? 'You' : stats.mostProfitable.name} {isCurrentUser(stats.mostProfitable.name) ? 'have' : 'has'} the highest total P/L: 
               {stats.mostProfitable.value > 0 ? '+' : ''}{formatCurrency(stats.mostProfitable.value)}
             </div>
           </div>
         )}
 
         {stats.bestDailyGainer.name && (
-          <div className="stat-card">
+          <div className={`stat-card ${isCurrentUser(stats.bestDailyGainer.name) ? 'current-user-stat' : ''}`}>
             <div className="stat-emoji">🚀</div>
             <div className="stat-title">Best Daily Gainer</div>
             <div className="stat-value">
-              📊 {stats.bestDailyGainer.name} had the best daily return: 
+              📊 {isCurrentUser(stats.bestDailyGainer.name) ? 'You' : stats.bestDailyGainer.name} {isCurrentUser(stats.bestDailyGainer.name) ? 'had' : 'had'} the best daily return: 
               +{stats.bestDailyGainer.value.toFixed(2)}% today
             </div>
           </div>
         )}
 
         {stats.mostDiversified.name && (
-          <div className="stat-card">
+          <div className={`stat-card ${isCurrentUser(stats.mostDiversified.name) ? 'current-user-stat' : ''}`}>
             <div className="stat-emoji">🧠</div>
             <div className="stat-title">Most Diversified Portfolio</div>
             <div className="stat-value">
-              🔀 {stats.mostDiversified.name} holds {stats.mostDiversified.count} unique stocks
+              🔀 {isCurrentUser(stats.mostDiversified.name) ? 'You' : stats.mostDiversified.name} {isCurrentUser(stats.mostDiversified.name) ? 'hold' : 'holds'} {stats.mostDiversified.count} unique stocks
             </div>
           </div>
         )}
 
         {stats.mostActive.name && (
-          <div className="stat-card">
+          <div className={`stat-card ${isCurrentUser(stats.mostActive.name) ? 'current-user-stat' : ''}`}>
             <div className="stat-emoji">📦</div>
             <div className="stat-title">Most Active Trader (Last 7 Days)</div>
             <div className="stat-value">
-              🔄 {stats.mostActive.name} made {stats.mostActive.count} trades this week
+              🔄 {isCurrentUser(stats.mostActive.name) ? 'You' : stats.mostActive.name} made {stats.mostActive.count} trades this week
             </div>
           </div>
         )}
 
         {stats.optionsEnthusiast.name && (
-          <div className="stat-card">
+          <div className={`stat-card ${isCurrentUser(stats.optionsEnthusiast.name) ? 'current-user-stat' : ''}`}>
             <div className="stat-emoji">🛠️</div>
             <div className="stat-title">Options Enthusiast</div>
             <div className="stat-value">
-              🧩 {stats.optionsEnthusiast.name} holds {stats.optionsEnthusiast.count} options
+              🧩 {isCurrentUser(stats.optionsEnthusiast.name) ? 'You' : stats.optionsEnthusiast.name} {isCurrentUser(stats.optionsEnthusiast.name) ? 'hold' : 'holds'} {stats.optionsEnthusiast.count} options
             </div>
           </div>
         )}
 
         {stats.worstDay.name && (
-          <div className="stat-card">
+          <div className={`stat-card ${isCurrentUser(stats.worstDay.name) ? 'current-user-stat' : ''}`}>
             <div className="stat-emoji">📉</div>
             <div className="stat-title">Worst Day</div>
             <div className="stat-value">
-              😵 {stats.worstDay.name} dropped {Math.abs(stats.worstDay.value).toFixed(2)}% today. Yikes.
+              😵 {isCurrentUser(stats.worstDay.name) ? 'You' : stats.worstDay.name} dropped {Math.abs(stats.worstDay.value).toFixed(2)}% today. Yikes.
             </div>
           </div>
         )}
@@ -786,6 +964,11 @@ const Hub = () => {
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // Initialize friends' data if needed
+  useEffect(() => {
+    ensureFriendDataInitialized();
+  }, []);
+  
   // Track online status for current user
   useOnlineStatus(user);
 
@@ -812,6 +995,11 @@ const Hub = () => {
     const allFriends = ['Yanai', 'Ido', 'Ofek', 'Megi'];
     return allFriends.filter(friend => friend !== user);
   }, [user]);
+  
+  // Get all users for group stats (including current user)
+  const allUsers = useMemo(() => {
+    return ['Yanai', 'Ido', 'Ofek', 'Megi'];
+  }, []);
 
   return (
     <div className="hub-container" key={refreshKey}>
@@ -848,7 +1036,7 @@ const Hub = () => {
           <h2>Friends' Portfolios</h2>
         </div>
         <FriendsPortfolios friends={friends} />
-        <FriendsGroupStats friends={friends} />
+        <FriendsGroupStats friends={allUsers} currentUser={user} />
       </div>
       {/* Activity Feed block */}
       <ActivityFeed />

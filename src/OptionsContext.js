@@ -3,7 +3,7 @@ import { AuthContext } from './AuthContext';
 import { ActivityFeedContext } from './ActivityFeedContext';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from './firebase';
-import { ref, set, onValue, off, update, remove } from 'firebase/database';
+import { ref, set, onValue, off, update, remove, get } from 'firebase/database';
 
 // Type for reference
 // type Option = { 
@@ -35,6 +35,45 @@ export function OptionsProvider({ children }) {
   // Real-time sync with Firebase
   useEffect(() => {
     if (!user) return;
+    
+    // Initial check - try to load existing data from localStorage if Firebase data doesn't exist yet
+    const initializeFromLocalStorage = async () => {
+      const userRef = ref(db, `options/${user}`);
+      const snapshot = await get(userRef);
+      
+      if (!snapshot.exists()) {
+        // No data in Firebase, check localStorage
+        try {
+          const localData = localStorage.getItem(`options_${user}`);
+          if (localData) {
+            const parsedOptions = JSON.parse(localData);
+            
+            // If we have localStorage data but no Firebase data, save to Firebase
+            if (Array.isArray(parsedOptions) && parsedOptions.length > 0) {
+              console.log(`Migrating ${parsedOptions.length} options from localStorage to Firebase for ${user}`);
+              
+              // Create a batch write to save all options
+              const batch = {};
+              parsedOptions.forEach(option => {
+                if (option.id) {
+                  batch[option.id] = option;
+                }
+              });
+              
+              // Save to Firebase
+              await set(userRef, batch);
+            }
+          }
+        } catch (error) {
+          console.error("Error migrating options from localStorage to Firebase:", error);
+        }
+      }
+    };
+    
+    // Try to initialize from localStorage first
+    initializeFromLocalStorage();
+    
+    // Then set up the regular Firebase listener
     const userRef = ref(db, `options/${user}`);
     const handleValue = (snapshot) => {
       const val = snapshot.val();

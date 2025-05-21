@@ -17,11 +17,14 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
           setPositions(parsedPositions.filter(pos => pos.lots && pos.lots.length > 0));
         }
 
-        // Load options
+        // Load options - make sure we're getting the right key
         const optKey = `options_${friend.friendName}`;
         const optData = localStorage.getItem(optKey);
         if (optData) {
           setOptions(JSON.parse(optData));
+        } else {
+          console.log(`No options found for ${friend.friendName} using key: ${optKey}`);
+          setOptions([]);
         }
 
         setLoading(false);
@@ -81,6 +84,7 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
                       <div className="option-details">
                         <span>Strike: ${option.strike}</span>
                         <span>Premium: ${option.premium}</span>
+                        <span>Direction: {option.direction}</span>
                         <span>Exp: {new Date(option.expiration).toLocaleDateString()}</span>
                       </div>
                     </div>

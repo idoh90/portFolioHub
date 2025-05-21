@@ -27,6 +27,8 @@ const getColor = (value) => (value >= 0 ? 'pos' : 'neg');
 
 const FriendPortfolioModal = ({ friend, onClose }) => {
   const [positions, setPositions] = useState([]);
+  const [options, setOptions] = useState([]);
+  const [activeTab, setActiveTab] = useState('stocks');
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalValue: 0,
@@ -39,40 +41,75 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Get positions from localStorage
-        const storedPositions = localStorage.getItem(`positions_${friend.friendName}`);
-        if (!storedPositions) {
-          console.error("No portfolio data found for friend:", friend.friendName);
-          setLoading(false);
-          return;
-        }
-
-        const parsedPositions = JSON.parse(storedPositions);
-        
-        // Filter out positions with no lots or empty lots arrays
-        const validPositions = parsedPositions.filter(pos => pos.lots && pos.lots.length > 0);
-        setPositions(validPositions);
-
-        // Calculate portfolio stats from real position data
         let totalValue = 0;
         let totalCost = 0;
         let yesterdayValue = 0;
 
-        validPositions.forEach(position => {
-          position.lots.forEach(lot => {
-            const shares = Number(lot.shares);
-            const buyPrice = Number(lot.price);
-            const currentPrice = Number(lot.currentPrice || buyPrice);
+        // Get positions from localStorage
+        try {
+          const storedPositions = localStorage.getItem(`positions_${friend.friendName}`);
+          if (storedPositions) {
+            const parsedPositions = JSON.parse(storedPositions);
             
-            const lotValue = shares * currentPrice;
-            const lotCost = shares * buyPrice;
-            const lotYesterdayValue = shares * (currentPrice * 0.99); // Approximate yesterday's value
+            // Filter out positions with no lots or empty lots arrays
+            const validPositions = parsedPositions.filter(pos => pos.lots && pos.lots.length > 0);
+            setPositions(validPositions);
+
+            // Calculate portfolio stats from real position data
+            validPositions.forEach(position => {
+              position.lots.forEach(lot => {
+                const shares = Number(lot.shares);
+                const buyPrice = Number(lot.price);
+                const currentPrice = Number(lot.currentPrice || buyPrice);
+                
+                const lotValue = shares * currentPrice;
+                const lotCost = shares * buyPrice;
+                const lotYesterdayValue = shares * (currentPrice * 0.99); // Approximate yesterday's value
+                
+                totalValue += lotValue;
+                totalCost += lotCost;
+                yesterdayValue += lotYesterdayValue;
+              });
+            });
+          } else {
+            setPositions([]);
+          }
+        } catch (posError) {
+          console.error("Error parsing positions for friend:", friend.friendName, posError);
+          setPositions([]);
+        }
+
+        // Get options from localStorage
+        try {
+          const storedOptions = localStorage.getItem(`options_${friend.friendName}`);
+          if (storedOptions) {
+            const parsedOptions = JSON.parse(storedOptions);
+            setOptions(Array.isArray(parsedOptions) ? parsedOptions : []);
             
-            totalValue += lotValue;
-            totalCost += lotCost;
-            yesterdayValue += lotYesterdayValue;
-          });
-        });
+            // Add options value to total stats
+            if (Array.isArray(parsedOptions) && parsedOptions.length > 0) {
+              parsedOptions.forEach(option => {
+                const contracts = Number(option.contracts || 0);
+                const strike = Number(option.strike || 0);
+                const premium = Number(option.premium || 0);
+                
+                // Simple calculation for demonstration - this would be more complex in reality
+                const optionValue = contracts * premium * 100; // Each contract is 100 shares
+                const optionCost = contracts * premium * 100;
+                const optionYesterdayValue = optionValue * 0.99; // Approximate
+                
+                totalValue += optionValue;
+                totalCost += optionCost;
+                yesterdayValue += optionYesterdayValue;
+              });
+            }
+          } else {
+            setOptions([]);
+          }
+        } catch (optError) {
+          console.error("Error parsing options for friend:", friend.friendName, optError);
+          setOptions([]);
+        }
 
         const totalPL = totalValue - totalCost;
         const plPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
@@ -179,7 +216,7 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
         
         {loading ? (
           <div className="loading-container">Loading portfolio data...</div>
-        ) : positions.length === 0 ? (
+        ) : positions.length === 0 && options.length === 0 ? (
           <div className="loading-container">No portfolio data available</div>
         ) : (
           <>
@@ -209,46 +246,107 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
               </div>
             </div>
             
-            <div className="allocation-section">
-              <h3>Portfolio Allocation</h3>
-              <div className="pie-chart-container">
-                <Pie data={chartData} options={chartOptions} />
+            {positions.length > 0 && (
+              <div className="allocation-section">
+                <h3>Portfolio Allocation</h3>
+                <div className="pie-chart-container">
+                  <Pie data={chartData} options={chartOptions} />
+                </div>
               </div>
-            </div>
+            )}
             
-            <div className="positions-section">
-              <h3>Positions</h3>
-              <div className="positions-table-container">
-                <table className="positions-table">
-                  <thead>
-                    <tr>
-                      <th>Ticker</th>
-                      <th>Shares</th>
-                      <th>Avg Price</th>
-                      <th>Current</th>
-                      <th>P/L</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {positionsWithAvgPrice.map((position, index) => (
-                      <tr key={index}>
-                        <td className="ticker-cell">{position.ticker}</td>
-                        <td>{position.totalShares}</td>
-                        <td>{formatCurrency(position.avgPrice)}</td>
-                        <td>{formatCurrency(position.currentPrice)}</td>
-                        <td className={position.unrealizedPL >= 0 ? 'pos' : 'neg'}>
-                          {position.unrealizedPL >= 0 ? '+' : ''}
-                          {formatCurrency(position.unrealizedPL)} 
-                          <span className="pl-percent">
-                            ({position.unrealizedPLPercent >= 0 ? '+' : ''}
-                            {position.unrealizedPLPercent.toFixed(2)}%)
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            <div className="tabs-container">
+              <div className="tabs">
+                <button 
+                  className={`tab-button ${activeTab === 'stocks' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('stocks')}
+                >
+                  Stocks {positions.length > 0 && `(${positions.length})`}
+                </button>
+                <button 
+                  className={`tab-button ${activeTab === 'options' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('options')}
+                >
+                  Options {options.length > 0 && `(${options.length})`}
+                </button>
               </div>
+              
+              {activeTab === 'stocks' && positions.length > 0 && (
+                <div className="positions-section">
+                  <div className="positions-table-container">
+                    <table className="positions-table">
+                      <thead>
+                        <tr>
+                          <th>Ticker</th>
+                          <th>Shares</th>
+                          <th>Avg Price</th>
+                          <th>Current</th>
+                          <th>P/L</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {positionsWithAvgPrice.map((position, index) => (
+                          <tr key={index}>
+                            <td className="ticker-cell">{position.ticker}</td>
+                            <td>{position.totalShares}</td>
+                            <td>{formatCurrency(position.avgPrice)}</td>
+                            <td>{formatCurrency(position.currentPrice)}</td>
+                            <td className={position.unrealizedPL >= 0 ? 'pos' : 'neg'}>
+                              {position.unrealizedPL >= 0 ? '+' : ''}
+                              {formatCurrency(position.unrealizedPL)} 
+                              <span className="pl-percent">
+                                ({position.unrealizedPLPercent >= 0 ? '+' : ''}
+                                {position.unrealizedPLPercent.toFixed(2)}%)
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'options' && (
+                <div className="options-section">
+                  {options.length === 0 ? (
+                    <div className="no-options-message">No options in portfolio</div>
+                  ) : (
+                    <div className="options-list">
+                      {options.map((option, index) => (
+                        <div key={index} className={`option-card ${option.type?.toLowerCase()}`}>
+                          <div className="option-header">
+                            <span className="option-ticker">{option.ticker} {option.type}</span>
+                            <span className="option-direction">{option.direction}</span>
+                          </div>
+                          <div className="option-details">
+                            <div className="option-detail">
+                              <span className="detail-label">Contracts:</span>
+                              <span className="detail-value">{option.contracts}</span>
+                            </div>
+                            <div className="option-detail">
+                              <span className="detail-label">Strike:</span>
+                              <span className="detail-value">${option.strike}</span>
+                            </div>
+                            <div className="option-detail">
+                              <span className="detail-label">Premium:</span>
+                              <span className="detail-value">${option.premium}/contract</span>
+                            </div>
+                            <div className="option-detail">
+                              <span className="detail-label">Total Value:</span>
+                              <span className="detail-value">${(option.premium * option.contracts * 100).toFixed(2)}</span>
+                            </div>
+                            <div className="option-detail">
+                              <span className="detail-label">Expiration:</span>
+                              <span className="detail-value">{new Date(option.expiration).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}
