@@ -11,23 +11,6 @@ export function ActivityFeedProvider({ children }) {
   const [isScrollLocked, setIsScrollLocked] = useState(false);
   const [hasNewActivity, setHasNewActivity] = useState(false);
 
-  // Add test activity when component mounts
-  useEffect(() => {
-    if (user) {
-      const testActivity = {
-        timestamp: Date.now(),
-        userId: user,
-        actionType: 'buy',
-        ticker: 'AAPL',
-        amount: 500
-      };
-      
-      // Only add test activity if there are no existing activities
-      const activitiesRef = ref(db, 'portfolio_activity');
-      push(activitiesRef, testActivity);
-    }
-  }, [user]);
-
   // Fetch activities from Firebase
   useEffect(() => {
     const activitiesRef = query(
