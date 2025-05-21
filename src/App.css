@@ -1,5 +1,9 @@
 .App {
   text-align: center;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
 }
 
 .App-logo {
@@ -53,7 +57,62 @@
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* Remove bottom padding for activity feed */
+/* Global styles for mobile optimization */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
-  padding-bottom: 0;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #181818;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+}
+
+/* Prevent horizontal scroll on all major containers */
+.container,
+.page-container,
+.content-wrapper {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Fix for iOS Safari 100vh issue */
+.full-height {
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+}
+
+/* Improve touch targets on mobile */
+button,
+a,
+input,
+select {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Prevent text size adjustment on orientation change */
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Remove rubber band effect */
+html,
+body {
+  overscroll-behavior-y: none;
+}
+
+/* Ensure modals don't cause horizontal scroll */
+.modal,
+.modal-overlay {
+  max-width: 100vw;
+  overflow-x: hidden;
 }
