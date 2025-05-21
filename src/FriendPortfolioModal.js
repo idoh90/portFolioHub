@@ -3,6 +3,9 @@ import { Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import './FriendPortfolioModal.css';
 import { getQuote } from './api/quote';
+import { useLastOnlineTime, formatTimeSince } from './Hub';
+import { ref, get, set, serverTimestamp } from 'firebase/database';
+import { db } from './firebase';
 
 // Register ChartJS components
 ChartJS.register(ArcElement, Tooltip, Legend);
@@ -42,11 +45,37 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
     dailyPL: 0,
     lastUpdated: new Date().toLocaleString()
   });
+  
+  // Get friend's online status
+  const { lastOnline, isOnline } = useLastOnlineTime(friend.friendName);
+  const [refreshingStatus, setRefreshingStatus] = useState(false);
+  
+  // Function to refresh the online status explicitly
+  const refreshOnlineStatus = useCallback(() => {
+    setRefreshingStatus(true);
+    const friendStatusRef = ref(db, `userStatus/${friend.friendName}`);
+    
+    get(friendStatusRef).then(snapshot => {
+      console.log(`Modal refreshing status for ${friend.friendName}:`, snapshot.val());
+      setTimeout(() => setRefreshingStatus(false), 800);
+    }).catch(error => {
+      console.error(`Error checking friend status in modal:`, error);
+      setRefreshingStatus(false);
+    });
+  }, [friend.friendName]);
+  
+  // Refresh status when modal opens
+  useEffect(() => {
+    refreshOnlineStatus();
+  }, [refreshOnlineStatus]);
 
   // Define fetchData as a callback so it can be called from UI
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Refresh online status
+      refreshOnlineStatus();
       
       // Special cleanup for Ofek
       if (friend.friendName === 'Ofek' && window.cleanupOfekMockData) {
@@ -270,7 +299,7 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
       console.error("Error loading friend portfolio data:", error);
       setLoading(false);
     }
-  }, [friend.friendName]);
+  }, [friend.friendName, refreshOnlineStatus]);
 
   // Helper function to get real-time stock prices
   const getStockPrice = async (ticker) => {
@@ -365,6 +394,18 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
         
         <div className="modal-header">
           <h2>{friend.friendName}'s Portfolio</h2>
+          <div className="friend-online-status">
+            <button 
+              className="status-refresh-button modal-status-refresh" 
+              onClick={refreshOnlineStatus}
+              disabled={refreshingStatus}
+              title="Refresh online status"
+            >
+              {refreshingStatus ? "⌛" : "↻"}
+            </button>
+            <span className="online-indicator">{isOnline ? '🟢 Online now' : '⚪ Offline'}</span>
+            {!isOnline && lastOnline && <span className="last-online">Last seen: {formatTimeSince(lastOnline)}</span>}
+          </div>
           <div className="modal-actions">
             <button 
               className="refresh-button" 

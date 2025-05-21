@@ -10,6 +10,8 @@ import ActivityFeed from './ActivityFeed';
 import { OptionsContext } from './OptionsContext';
 import NotificationButton from './components/NotificationButton';
 import './components/NotificationButton.css';
+import { ref, set, onValue, off, get, serverTimestamp } from 'firebase/database';
+import { db } from './firebase';
 
 // Utility to calculate average buy price for a ticker from transactions
 function calculateAvgBuyPrice(transactions, ticker) {
@@ -244,12 +246,22 @@ function useOnlineStatus(username) {
   useEffect(() => {
     if (!username) return;
 
-    // Update last online time when component mounts (user enters site)
+    // Create a unique reference for the user's online status
+    const userStatusRef = ref(db, `userStatus/${username}`);
+    
+    // Set online status on connection
     const updateLastOnline = () => {
-      const timestamp = new Date().toISOString();
-      
       // Store in localStorage to persist across browser sessions
-      localStorage.setItem(`lastOnline_${username}`, timestamp);
+      localStorage.setItem(`lastOnline_${username}`, new Date().toISOString());
+      
+      // Store in Firebase for universal access using server timestamp
+      set(userStatusRef, {
+        lastOnline: new Date().toISOString(),
+        isOnline: true,
+        lastUpdated: serverTimestamp() // Use Firebase server timestamp
+      }).catch(error => {
+        console.error("Error updating online status in Firebase:", error);
+      });
       
       // Use sessionStorage to mark active status in current session
       sessionStorage.setItem('currentlyActive', 'true');
@@ -258,8 +270,8 @@ function useOnlineStatus(username) {
     // Update on mount (when user enters site)
     updateLastOnline();
 
-    // Set up interval to update timestamp periodically while user is active
-    const interval = setInterval(updateLastOnline, 60000); // Update every minute
+    // Set up interval to update timestamp more frequently while user is active
+    const interval = setInterval(updateLastOnline, 15000); // Update every 15 seconds
 
     // Update on window focus
     const handleFocus = () => {
@@ -268,16 +280,34 @@ function useOnlineStatus(username) {
 
     // Update before user leaves
     const handleBeforeUnload = () => {
-      updateLastOnline();
+      // When leaving, set isOnline to false but keep lastOnline time
+      const timestamp = new Date().toISOString();
+      set(userStatusRef, {
+        lastOnline: timestamp,
+        isOnline: false,
+        lastUpdated: serverTimestamp() // Use Firebase server timestamp
+      }).catch(error => {
+        console.error("Error updating offline status in Firebase:", error);
+      });
+      
+      // Also update localStorage
+      localStorage.setItem(`lastOnline_${username}`, timestamp);
     };
 
     window.addEventListener('focus', handleFocus);
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
-      // Still update the timestamp on unmount but don't clear from localStorage
-      // This ensures the timestamp persists even after the user leaves
-      updateLastOnline();
+      // Set the user as offline when the component unmounts
+      const timestamp = new Date().toISOString();
+      set(userStatusRef, {
+        lastOnline: timestamp,
+        isOnline: false,
+        lastUpdated: serverTimestamp() // Use Firebase server timestamp
+      }).catch(error => {
+        console.error("Error updating offline status in Firebase:", error);
+      });
+      
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -286,36 +316,73 @@ function useOnlineStatus(username) {
 }
 
 // Hook to get last online time for a user
-function useLastOnlineTime(username) {
+export function useLastOnlineTime(username) {
   const [lastOnline, setLastOnline] = useState(null);
+  const [isOnline, setIsOnline] = useState(false);
 
   useEffect(() => {
-    const getLastOnline = () => {
-      // Use sessionStorage to track current session status
-      let timestamp = localStorage.getItem(`lastOnline_${username}`);
+    if (!username) return;
+    
+    console.log(`Setting up listener for ${username}'s online status`);
+    
+    // Get user status from Firebase
+    const userStatusRef = ref(db, `userStatus/${username}`);
+    
+    // Set up a listener for real-time updates
+    const statusListener = onValue(userStatusRef, (snapshot) => {
+      const data = snapshot.val();
+      console.log(`Received status update for ${username}:`, data);
       
-      // Ensure we're getting the persistent value from localStorage, not the session-specific one
-      if (timestamp) {
-        setLastOnline(new Date(timestamp));
+      if (data && data.lastOnline) {
+        setLastOnline(new Date(data.lastOnline));
+        
+        // Important: If the user is explicitly marked as online, consider them online
+        if (data.isOnline === true) {
+          console.log(`${username} is explicitly marked as online`);
+          setIsOnline(true);
+          return;
+        }
+        
+        // Check if last updated time is recent (within 3 minutes)
+        // This handles the case where isOnline might be false but the user is actually active
+        if (data.lastUpdated) {
+          const lastUpdateTime = typeof data.lastUpdated === 'number' 
+            ? data.lastUpdated 
+            : new Date(data.lastUpdated).getTime();
+          
+          const isRecentlyActive = (Date.now() - lastUpdateTime) < 3 * 60 * 1000;
+          console.log(`${username} last updated time: ${new Date(lastUpdateTime).toLocaleString()}, isRecentlyActive: ${isRecentlyActive}`);
+          setIsOnline(isRecentlyActive);
+        } else {
+          setIsOnline(false);
+        }
       } else {
-        setLastOnline(null);
+        // No Firebase data, fall back to localStorage
+        const localTimestamp = localStorage.getItem(`lastOnline_${username}`);
+        if (localTimestamp) {
+          setLastOnline(new Date(localTimestamp));
+          // For localStorage, check if timestamp is recent (within 3 minutes)
+          const isRecentlyActive = (new Date() - new Date(localTimestamp)) < 3 * 60 * 1000;
+          setIsOnline(isRecentlyActive);
+        } else {
+          setLastOnline(null);
+          setIsOnline(false);
+        }
       }
+    });
+    
+    // Cleanup listener on unmount
+    return () => {
+      console.log(`Removing listener for ${username}'s online status`);
+      off(userStatusRef, 'value', statusListener);
     };
-
-    // Get initial value
-    getLastOnline();
-
-    // Set up interval to check for updates
-    const interval = setInterval(getLastOnline, 10000); // Check every 10 seconds
-
-    return () => clearInterval(interval);
   }, [username]);
 
-  return lastOnline;
+  return { lastOnline, isOnline };
 }
 
 // Helper function to format time since
-function formatTimeSince(date) {
+export function formatTimeSince(date) {
   if (!date) return 'Never';
   
   const seconds = Math.floor((new Date() - date) / 1000);
@@ -778,15 +845,48 @@ function useFriendPortfolioStats(friendName) {
 const FriendCard = ({ friendName }) => {
   const stats = useFriendPortfolioStats(friendName);
   const [showModal, setShowModal] = useState(false);
-  const lastOnlineTime = useLastOnlineTime(friendName);
+  const { lastOnline, isOnline } = useLastOnlineTime(friendName);
   const [friendOptions, setFriendOptions] = useState([]);
   const [totalOptionsValue, setTotalOptionsValue] = useState(0);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Force refresh data
   const refreshData = useCallback(() => {
     setRefreshKey(prevKey => prevKey + 1);
-  }, []);
+    setRefreshing(true);
+    
+    // Force a direct check of the friend's online status
+    const friendStatusRef = ref(db, `userStatus/${friendName}`);
+    get(friendStatusRef).then(snapshot => {
+      const data = snapshot.val();
+      console.log(`Manual refresh status for ${friendName}:`, data);
+      
+      // If we have data, update the timestamp to force a refresh
+      if (data) {
+        // Just triggering a read is enough to update the listener
+        console.log(`${friendName} status found, listener will update`);
+      } else {
+        // No data found, initialize with offline status
+        console.log(`No status found for ${friendName}, initializing...`);
+        const localTimestamp = localStorage.getItem(`lastOnline_${friendName}`);
+        const timestamp = localTimestamp || new Date().toISOString();
+        
+        set(friendStatusRef, {
+          lastOnline: timestamp,
+          isOnline: false,
+          lastUpdated: serverTimestamp()
+        }).catch(error => {
+          console.error(`Error initializing status for ${friendName}:`, error);
+        });
+      }
+      
+      setTimeout(() => setRefreshing(false), 1000);
+    }).catch(error => {
+      console.error(`Error manually refreshing status for ${friendName}:`, error);
+      setRefreshing(false);
+    });
+  }, [friendName]);
   
   // Clean up data and refresh on mount or friendName change
   useEffect(() => {
@@ -845,12 +945,21 @@ const FriendCard = ({ friendName }) => {
         <div className="friend-header">
           <div className="friend-name">{friendName}</div>
           <div className="last-online">
+            <button 
+              className="status-refresh-button" 
+              onClick={(e) => {
+                e.stopPropagation();
+                refreshData();
+              }}
+              title="Refresh status"
+              disabled={refreshing}
+            >
+              {refreshing ? "⌛" : "↻"}
+            </button>
             <span className="online-status">
-              {lastOnlineTime && (new Date() - lastOnlineTime) < 5 * 60 * 1000 
-                ? '🟢' 
-                : '⚪'}
+              {isOnline ? '🟢' : '⚪'}
             </span>
-            {lastOnlineTime ? formatTimeSince(lastOnlineTime) : 'Never'}
+            {lastOnline ? formatTimeSince(lastOnline) : 'Never'}
           </div>
         </div>
         
@@ -901,7 +1010,8 @@ const FriendCard = ({ friendName }) => {
   );
 };
 
-const FriendsPortfolios = ({ friends }) => {
+// FriendsPortfolios component needs to receive current user
+const FriendsPortfolios = ({ friends, currentUser }) => {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Refresh stats every 5 minutes
@@ -918,9 +1028,49 @@ const FriendsPortfolios = ({ friends }) => {
     purgeAllMockData();
     // Re-initialize friend data
     ensureFriendDataInitialized();
+    
+    // Force update of current user's online status if available
+    if (currentUser) {
+      const timestamp = new Date().toISOString();
+      const userStatusRef = ref(db, `userStatus/${currentUser}`);
+      set(userStatusRef, {
+        lastOnline: timestamp,
+        isOnline: true,
+        lastUpdated: serverTimestamp()
+      }).catch(error => {
+        console.error(`Error updating online status for current user:`, error);
+      });
+    }
+    
+    // Check online status for all friends by triggering Firebase reads
+    friends.forEach(friendName => {
+      const friendStatusRef = ref(db, `userStatus/${friendName}`);
+      get(friendStatusRef).then(snapshot => {
+        const data = snapshot.val();
+        console.log(`Refreshing status for ${friendName}:`, data);
+        
+        // If not in Firebase yet, initialize from localStorage
+        if (!data) {
+          const localTimestamp = localStorage.getItem(`lastOnline_${friendName}`);
+          if (localTimestamp) {
+            // Initialize in Firebase with data from localStorage
+            set(friendStatusRef, {
+              lastOnline: localTimestamp,
+              isOnline: false,
+              lastUpdated: serverTimestamp()
+            }).catch(error => {
+              console.error(`Error initializing status for ${friendName}:`, error);
+            });
+          }
+        }
+      }).catch(error => {
+        console.error(`Error checking online status for ${friendName}:`, error);
+      });
+    });
+    
     // Force a re-render by updating the refresh key
     setRefreshKey(prevKey => prevKey + 1);
-  }, []);
+  }, [friends, currentUser]);
 
   return (
     <>
@@ -1203,7 +1353,19 @@ const Hub = () => {
 
   const handleLogout = () => {
     // Update last online time before logging out
-    localStorage.setItem(`lastOnline_${user}`, new Date().toISOString());
+    const timestamp = new Date().toISOString();
+    localStorage.setItem(`lastOnline_${user}`, timestamp);
+    
+    // Set user as offline in Firebase
+    const userStatusRef = ref(db, `userStatus/${user}`);
+    set(userStatusRef, {
+      lastOnline: timestamp,
+      isOnline: false,
+      lastUpdated: serverTimestamp()
+    }).catch(error => {
+      console.error("Error updating offline status in Firebase:", error);
+    });
+    
     logout();
     navigate('/');
   };
@@ -1291,7 +1453,7 @@ const Hub = () => {
         <div className="friends-header">
           <h2>Friends' Portfolios</h2>
         </div>
-        <FriendsPortfolios friends={friends} />
+        <FriendsPortfolios friends={friends} currentUser={user} />
         <FriendsGroupStats friends={allUsers} currentUser={user} />
       </div>
       {/* Activity Feed block */}

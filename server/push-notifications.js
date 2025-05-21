@@ -28,8 +28,21 @@ const subscriptions = new Map();
  * @param {Object} subscription - PushSubscription object from browser
  */
 const saveSubscription = (userId, subscription) => {
+  console.log(`[PUSH-DEBUG] Saving subscription for user ${userId}:`, JSON.stringify(subscription, null, 2));
+  
+  // Check if subscription has endpoint and keys for debugging
+  if (!subscription.endpoint) {
+    console.error(`[PUSH-DEBUG] Missing endpoint in subscription for ${userId}`);
+    return false;
+  }
+  
+  if (!subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
+    console.error(`[PUSH-DEBUG] Missing keys in subscription for ${userId}`);
+    return false;
+  }
+  
   subscriptions.set(userId, subscription);
-  console.log(`Saved subscription for user ${userId}`);
+  console.log(`[PUSH-DEBUG] Saved subscription for user ${userId}. Current subscriptions count: ${subscriptions.size}`);
   return true;
 };
 
@@ -38,9 +51,12 @@ const saveSubscription = (userId, subscription) => {
  * @param {string} userId - User identifier
  */
 const removeSubscription = (userId) => {
+  console.log(`[PUSH-DEBUG] Removing subscription for user ${userId}`);
   const removed = subscriptions.delete(userId);
   if (removed) {
-    console.log(`Removed subscription for user ${userId}`);
+    console.log(`[PUSH-DEBUG] Removed subscription for user ${userId}. Current subscriptions count: ${subscriptions.size}`);
+  } else {
+    console.log(`[PUSH-DEBUG] No subscription found for user ${userId}`);
   }
   return removed;
 };
@@ -51,25 +67,65 @@ const removeSubscription = (userId) => {
  * @param {Object} payload - Notification payload
  */
 const sendNotification = async (userId, payload) => {
+  console.log(`[PUSH-DEBUG] Attempting to send notification to user ${userId}`);
   const subscription = subscriptions.get(userId);
   
   if (!subscription) {
-    console.log(`No subscription found for user ${userId}`);
+    console.log(`[PUSH-DEBUG] No subscription found for user ${userId}`);
     return false;
   }
   
   try {
-    await webpush.sendNotification(
+    console.log(`[PUSH-DEBUG] Sending notification to ${userId} with payload:`, JSON.stringify(payload, null, 2));
+    
+    // Prepare proper payload format for iOS compatibility
+    let pushPayload = payload;
+    
+    // For iOS, make sure the payload follows the required structure
+    if (!payload.aps && (payload.title || payload.body)) {
+      pushPayload = {
+        title: payload.title || 'StockHub',
+        body: payload.body || '',
+        badge: 1,
+        data: payload.data || {},
+        // Add aps structure for iOS
+        aps: {
+          alert: {
+            title: payload.title || 'StockHub',
+            body: payload.body || ''
+          },
+          badge: 1,
+          'content-available': 1
+        }
+      };
+    }
+    
+    const result = await webpush.sendNotification(
       subscription,
-      JSON.stringify(payload)
+      JSON.stringify(pushPayload)
     );
-    console.log(`Notification sent to user ${userId}`);
+    
+    console.log(`[PUSH-DEBUG] Notification sent to user ${userId}. Status: ${result.statusCode}`);
     return true;
   } catch (error) {
-    console.error(`Error sending notification to user ${userId}:`, error);
+    console.error(`[PUSH-DEBUG] Error sending notification to user ${userId}:`, error);
+    
+    // Detailed error info for iOS troubleshooting
+    if (error.statusCode) {
+      console.error(`[PUSH-DEBUG] Status code: ${error.statusCode}`);
+    }
+    
+    if (error.body) {
+      console.error(`[PUSH-DEBUG] Error body: ${error.body}`);
+    }
+    
+    if (error.headers) {
+      console.error(`[PUSH-DEBUG] Error headers:`, error.headers);
+    }
     
     // If subscription is expired or invalid, remove it
     if (error.statusCode === 410) {
+      console.error(`[PUSH-DEBUG] Subscription expired or invalid, removing it`);
       removeSubscription(userId);
     }
     
@@ -82,21 +138,65 @@ const sendNotification = async (userId, payload) => {
  * @param {Object} payload - Notification payload
  */
 const sendBroadcast = async (payload) => {
+  console.log(`[PUSH-DEBUG] Broadcasting notification to ${subscriptions.size} users`);
+  console.log(`[PUSH-DEBUG] Broadcast payload:`, JSON.stringify(payload, null, 2));
+  
+  if (subscriptions.size === 0) {
+    console.log(`[PUSH-DEBUG] No subscriptions available for broadcast`);
+    return {};
+  }
+  
   const results = {};
   
   for (const [userId, subscription] of subscriptions.entries()) {
     try {
-      await webpush.sendNotification(
+      console.log(`[PUSH-DEBUG] Broadcasting to user ${userId}`);
+      
+      // Prepare proper payload format for iOS compatibility
+      let pushPayload = payload;
+      
+      // For iOS, make sure the payload follows the required structure
+      if (!payload.aps && (payload.title || payload.body)) {
+        pushPayload = {
+          title: payload.title || 'StockHub',
+          body: payload.body || '',
+          badge: 1,
+          data: payload.data || {},
+          // Add aps structure for iOS
+          aps: {
+            alert: {
+              title: payload.title || 'StockHub',
+              body: payload.body || ''
+            },
+            badge: 1,
+            'content-available': 1
+          }
+        };
+      }
+      
+      const result = await webpush.sendNotification(
         subscription,
-        JSON.stringify(payload)
+        JSON.stringify(pushPayload)
       );
+      
       results[userId] = 'success';
+      console.log(`[PUSH-DEBUG] Broadcast to user ${userId} succeeded. Status: ${result.statusCode}`);
     } catch (error) {
       results[userId] = 'failed';
-      console.error(`Error sending broadcast to user ${userId}:`, error);
+      console.error(`[PUSH-DEBUG] Error broadcasting to user ${userId}:`, error);
+      
+      // Detailed error info for iOS troubleshooting
+      if (error.statusCode) {
+        console.error(`[PUSH-DEBUG] Status code: ${error.statusCode}`);
+      }
+      
+      if (error.body) {
+        console.error(`[PUSH-DEBUG] Error body: ${error.body}`);
+      }
       
       // If subscription is expired or invalid, remove it
       if (error.statusCode === 410) {
+        console.error(`[PUSH-DEBUG] Subscription expired or invalid, removing it`);
         removeSubscription(userId);
       }
     }
@@ -151,5 +251,7 @@ module.exports = {
   sendNotification,
   sendBroadcast,
   notificationExamples,
-  vapidPublicKey: vapidKeys.publicKey
+  vapidPublicKey: vapidKeys.publicKey,
+  // Add a method to get all subscriptions for testing
+  listSubscriptions: () => subscriptions
 }; 

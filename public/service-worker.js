@@ -81,6 +81,7 @@ self.addEventListener("fetch", function (event) {
 // Push event handler
 self.addEventListener('push', function(event) {
   console.log('[StockHub Service Worker] Push Received:', event);
+  console.log('[StockHub Service Worker] Push Data:', event.data ? event.data.text() : 'no data');
   
   let notificationData = {};
   
@@ -88,6 +89,7 @@ self.addEventListener('push', function(event) {
     // Parse the data sent from server
     if (event.data) {
       notificationData = event.data.json();
+      console.log('[StockHub Service Worker] Push data parsed:', JSON.stringify(notificationData));
     }
   } catch (error) {
     console.error('[StockHub Service Worker] Error parsing push data:', error);
@@ -104,20 +106,58 @@ self.addEventListener('push', function(event) {
   
   // Set defaults for notification properties
   const title = notificationData.title || 'StockHub Update';
-  const options = {
-    body: notificationData.body || 'You have a new notification',
-    icon: notificationData.icon || '/logo192.png',
-    badge: '/favicon.ico',
-    data: notificationData.data || { url: '/' },
-    // Add vibration pattern for mobile
-    vibrate: [100, 50, 100],
-    // Notification actions
-    actions: notificationData.actions || []
-  };
+  
+  // Check for iOS-specific format
+  let options = {};
+  
+  if (notificationData.aps) {
+    console.log('[StockHub Service Worker] Using iOS format');
+    // Extract iOS format
+    const aps = notificationData.aps;
+    
+    if (aps.alert) {
+      options = {
+        body: aps.alert.body || 'You have a new notification',
+        icon: notificationData.icon || '/logo192.png',
+        badge: aps.badge ? `/favicon.ico` : '/favicon.ico',
+        data: notificationData.data || { url: '/' },
+        // Add vibration pattern for mobile
+        vibrate: [100, 50, 100],
+        // Make sure notification stays visible on iOS
+        requireInteraction: true,
+        // Notification actions
+        actions: notificationData.actions || []
+      };
+    }
+  } else {
+    // Standard format
+    options = {
+      body: notificationData.body || 'You have a new notification',
+      icon: notificationData.icon || '/logo192.png',
+      badge: '/favicon.ico',
+      data: notificationData.data || { url: '/' },
+      // Add vibration pattern for mobile
+      vibrate: [100, 50, 100],
+      // Make sure notification stays visible on iOS
+      requireInteraction: true,
+      // Tag to group notifications
+      tag: 'stockhub-notification',
+      // Notification actions
+      actions: notificationData.actions || []
+    };
+  }
+  
+  console.log('[StockHub Service Worker] Showing notification:', title, options);
   
   // Show the notification
   event.waitUntil(
     self.registration.showNotification(title, options)
+      .then(() => {
+        console.log('[StockHub Service Worker] Notification displayed successfully');
+      })
+      .catch(err => {
+        console.error('[StockHub Service Worker] Error showing notification:', err);
+      })
   );
 });
 

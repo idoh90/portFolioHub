@@ -667,4 +667,25 @@
   top: 15px;
   right: 60px; /* Position it to the left of the logout button */
   z-index: 100;
+}
+
+.status-refresh-button {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  margin-right: 3px;
+  transition: all 0.2s;
+}
+
+.status-refresh-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.status-refresh-button:focus {
+  outline: none;
 } 

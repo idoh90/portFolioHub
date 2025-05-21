@@ -79,6 +79,26 @@
   color: white;
 }
 
+.friend-online-status {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+  color: #aaa;
+  gap: 12px;
+}
+
+.online-indicator {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.last-online {
+  font-style: italic;
+  color: #888;
+}
+
 .modal-actions {
   display: flex;
   justify-content: space-between;
@@ -380,4 +400,23 @@
   text-align: center;
   padding: 20px;
   font-style: italic;
+}
+
+.modal-status-refresh {
+  margin-right: 8px;
+  font-size: 0.9rem;
+  padding: 3px 6px;
+  border-radius: 50%;
+  color: #aaa;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.modal-status-refresh:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.modal-status-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 } 

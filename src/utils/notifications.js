@@ -90,9 +90,11 @@ export const subscribeToPushNotifications = async () => {
 // Send subscription to server
 export const sendSubscriptionToServer = async (subscription) => {
   try {
-    // Get current user from local storage or context
-    // For this example, we'll use a hardcoded value or get from localStorage
-    const userId = localStorage.getItem('currentUser') || 'anonymous';
+    // Get current user from local storage or auth context
+    const currentUser = localStorage.getItem('currentUser');
+    const userId = currentUser || 'anonymous';
+    
+    console.log('Sending subscription to server for user:', userId);
     
     // Replace with your actual API endpoint
     const apiUrl = process.env.NODE_ENV === 'production'

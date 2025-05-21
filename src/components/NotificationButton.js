@@ -131,7 +131,7 @@ const NotificationButton = () => {
   if (isSubscribed) {
     return (
       <button 
-        onClick={notificationsEnabled ? handleToggleNotifications : handleToggleNotifications}
+        onClick={handleToggleNotifications}
         disabled={isLoading}
         className={`notification-button ${notificationsEnabled ? 'unsubscribe' : 'muted'}`}
       >

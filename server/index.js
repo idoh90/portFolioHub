@@ -118,11 +118,14 @@ app.post('/api/broadcast-notification', (req, res) => {
     const { notification } = req.body;
     
     if (!notification) {
+      console.error('Missing notification data in broadcast request');
       return res.status(400).json({ 
         success: false, 
         message: 'Missing notification data' 
       });
     }
+    
+    console.log('Received broadcast notification request:', JSON.stringify(notification, null, 2));
     
     // Send notification asynchronously to all users
     pushNotifications.sendBroadcast(notification)
