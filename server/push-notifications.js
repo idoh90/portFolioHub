@@ -79,30 +79,28 @@ const sendNotification = async (userId, payload) => {
     console.log(`[PUSH-DEBUG] Sending notification to ${userId} with payload:`, JSON.stringify(payload, null, 2));
     
     // Prepare proper payload format for iOS compatibility
-    let pushPayload = payload;
+    let pushPayload = { ...payload }; // Clone to avoid modifying original
     
-    // For iOS, make sure the payload follows the required structure
-    if (!payload.aps && (payload.title || payload.body)) {
-      pushPayload = {
-        title: payload.title || 'StockHub',
-        body: payload.body || '',
-        badge: 1,
-        data: payload.data || {},
-        // Add aps structure for iOS
-        aps: {
-          alert: {
-            title: payload.title || 'StockHub',
-            body: payload.body || ''
-          },
-          badge: 1,
-          'content-available': 1
-        }
+    // For Safari/iOS web push, we need a very specific payload format
+    // Ensure the aps structure is properly formatted - this is critical for iOS
+    if (!pushPayload.aps) {
+      pushPayload.aps = {
+        alert: {
+          title: pushPayload.title || 'StockHub',
+          body: pushPayload.body || ''
+        },
+        badge: pushPayload.badge || 1,
+        'content-available': 1
       };
     }
     
+    // Convert to string for webpush
+    const pushPayloadString = JSON.stringify(pushPayload);
+    console.log(`[PUSH-DEBUG] Final push payload:`, pushPayloadString);
+    
     const result = await webpush.sendNotification(
       subscription,
-      JSON.stringify(pushPayload)
+      pushPayloadString
     );
     
     console.log(`[PUSH-DEBUG] Notification sent to user ${userId}. Status: ${result.statusCode}`);
@@ -153,30 +151,28 @@ const sendBroadcast = async (payload) => {
       console.log(`[PUSH-DEBUG] Broadcasting to user ${userId}`);
       
       // Prepare proper payload format for iOS compatibility
-      let pushPayload = payload;
+      let pushPayload = { ...payload }; // Clone to avoid modifying original
       
-      // For iOS, make sure the payload follows the required structure
-      if (!payload.aps && (payload.title || payload.body)) {
-        pushPayload = {
-          title: payload.title || 'StockHub',
-          body: payload.body || '',
-          badge: 1,
-          data: payload.data || {},
-          // Add aps structure for iOS
-          aps: {
-            alert: {
-              title: payload.title || 'StockHub',
-              body: payload.body || ''
-            },
-            badge: 1,
-            'content-available': 1
-          }
+      // For Safari/iOS web push, we need a very specific payload format
+      // Ensure the aps structure is properly formatted - this is critical for iOS
+      if (!pushPayload.aps) {
+        pushPayload.aps = {
+          alert: {
+            title: pushPayload.title || 'StockHub',
+            body: pushPayload.body || ''
+          },
+          badge: pushPayload.badge || 1,
+          'content-available': 1
         };
       }
       
+      // Convert to string for webpush
+      const pushPayloadString = JSON.stringify(pushPayload);
+      console.log(`[PUSH-DEBUG] Final broadcast payload for ${userId}:`, pushPayloadString);
+      
       const result = await webpush.sendNotification(
         subscription,
-        JSON.stringify(pushPayload)
+        pushPayloadString
       );
       
       results[userId] = 'success';
@@ -252,6 +248,7 @@ module.exports = {
   sendBroadcast,
   notificationExamples,
   vapidPublicKey: vapidKeys.publicKey,
+  getSubscriptionsCount: () => subscriptions.size,
   // Add a method to get all subscriptions for testing
   listSubscriptions: () => subscriptions
 }; 

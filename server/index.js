@@ -83,16 +83,26 @@ app.post('/api/send-notification', (req, res) => {
     const { userId, notification } = req.body;
     
     if (!userId || !notification) {
+      console.error('Missing userId or notification data:', { userId, notification });
       return res.status(400).json({ 
         success: false, 
         message: 'Missing userId or notification data' 
       });
     }
     
+    console.log('[DEBUG] Sending notification to user:', userId);
+    console.log('[DEBUG] Notification payload:', JSON.stringify(notification, null, 2));
+    
     // Send notification asynchronously
     pushNotifications.sendNotification(userId, notification)
       .then(success => {
         console.log(`Notification to ${userId} ${success ? 'sent' : 'failed'}`);
+        
+        // If failed, we should return an error to the client
+        if (!success) {
+          // This won't actually reach the client because we already responded
+          console.error(`Failed to send notification to ${userId}`);
+        }
       })
       .catch(error => {
         console.error('Error in notification sending:', error);
@@ -107,7 +117,7 @@ app.post('/api/send-notification', (req, res) => {
     console.error('Error queuing notification:', error);
     return res.status(500).json({ 
       success: false, 
-      message: 'Internal server error' 
+      message: 'Internal server error: ' + error.message
     });
   }
 });
@@ -125,15 +135,22 @@ app.post('/api/broadcast-notification', (req, res) => {
       });
     }
     
-    console.log('Received broadcast notification request:', JSON.stringify(notification, null, 2));
+    console.log('[DEBUG] Received broadcast notification request:', JSON.stringify(notification, null, 2));
+    console.log('[DEBUG] Current subscriptions:', pushNotifications.getSubscriptionsCount());
     
     // Send notification asynchronously to all users
     pushNotifications.sendBroadcast(notification)
       .then(results => {
-        console.log('Broadcast notification results:', results);
+        console.log('[DEBUG] Broadcast notification results:', results);
+        
+        // Check if any broadcasts succeeded
+        const succeeded = Object.values(results).some(result => result === 'success');
+        if (!succeeded && Object.keys(results).length > 0) {
+          console.error('[DEBUG] All broadcast notifications failed:', results);
+        }
       })
       .catch(error => {
-        console.error('Error sending broadcast notification:', error);
+        console.error('[DEBUG] Error sending broadcast notification:', error);
       });
     
     // Respond immediately since broadcasting is async
@@ -142,10 +159,10 @@ app.post('/api/broadcast-notification', (req, res) => {
       message: 'Notification queued for broadcast' 
     });
   } catch (error) {
-    console.error('Error queuing broadcast notification:', error);
+    console.error('[DEBUG] Error queuing broadcast notification:', error);
     return res.status(500).json({ 
       success: false, 
-      message: 'Internal server error' 
+      message: 'Internal server error: ' + error.message
     });
   }
 });
@@ -153,6 +170,13 @@ app.post('/api/broadcast-notification', (req, res) => {
 // Get the VAPID public key
 app.get('/api/vapid-public-key', (req, res) => {
   res.json({ publicKey: pushNotifications.vapidPublicKey });
+});
+
+// Get the number of active subscriptions
+app.get('/api/push-subscriptions/count', (req, res) => {
+  const count = pushNotifications.getSubscriptionsCount();
+  console.log(`[DEBUG] Current subscriptions count: ${count}`);
+  res.json({ count });
 });
 
 // Start the server

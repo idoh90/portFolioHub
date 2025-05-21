@@ -92,12 +92,21 @@ const NotificationDebugger = () => {
       
       if (response.ok) {
         addLog('✅ Test notification sent successfully');
+        addLog('📱 Check your device for the notification');
       } else {
-        const error = await response.text();
-        addLog(`❌ Failed to send test notification: ${error}`, true);
+        let errorText = '';
+        try {
+          const errorData = await response.json();
+          errorText = errorData.message || response.statusText;
+        } catch (e) {
+          errorText = await response.text() || response.statusText;
+        }
+        addLog(`❌ Failed to send test notification: ${errorText}`, true);
+        addLog('🔍 Check server logs for more details', true);
       }
     } catch (error) {
       addLog(`❌ Error sending test notification: ${error.message}`, true);
+      addLog('📡 Check if the server is running at http://localhost:5000', true);
     }
     
     setIsLoading(false);
@@ -135,12 +144,36 @@ const NotificationDebugger = () => {
       
       if (response.ok) {
         addLog('✅ Broadcast notification sent successfully');
+        addLog('📱 Check your device for the notification');
+        
+        // Check if we have any subscriptions
+        const subscriptionsResponse = await fetch('http://localhost:5000/api/push-subscriptions/count');
+        if (subscriptionsResponse.ok) {
+          try {
+            const countData = await subscriptionsResponse.json();
+            if (countData.count === 0) {
+              addLog('⚠️ No active subscriptions found - register first', true);
+            } else {
+              addLog(`📊 Sent to ${countData.count} subscriptions`);
+            }
+          } catch (e) {
+            // Ignore JSON parse error
+          }
+        }
       } else {
-        const error = await response.text();
-        addLog(`❌ Failed to send broadcast notification: ${error}`, true);
+        let errorText = '';
+        try {
+          const errorData = await response.json();
+          errorText = errorData.message || response.statusText;
+        } catch (e) {
+          errorText = await response.text() || response.statusText;
+        }
+        addLog(`❌ Failed to send broadcast notification: ${errorText}`, true);
+        addLog('🔍 Check server logs for more details', true);
       }
     } catch (error) {
       addLog(`❌ Error sending broadcast notification: ${error.message}`, true);
+      addLog('📡 Check if the server is running at http://localhost:5000', true);
     }
     
     setIsLoading(false);

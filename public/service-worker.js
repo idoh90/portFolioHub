@@ -104,61 +104,85 @@ self.addEventListener('push', function(event) {
     };
   }
   
-  // Set defaults for notification properties
-  const title = notificationData.title || 'StockHub Update';
-  
-  // Check for iOS-specific format
-  let options = {};
-  
+  // First check for iOS-specific format
   if (notificationData.aps) {
     console.log('[StockHub Service Worker] Using iOS format');
+    
     // Extract iOS format
     const aps = notificationData.aps;
+    let title = 'StockHub Update';
+    let options = {};
     
     if (aps.alert) {
-      options = {
-        body: aps.alert.body || 'You have a new notification',
-        icon: notificationData.icon || '/logo192.png',
-        badge: aps.badge ? `/favicon.ico` : '/favicon.ico',
-        data: notificationData.data || { url: '/' },
-        // Add vibration pattern for mobile
-        vibrate: [100, 50, 100],
-        // Make sure notification stays visible on iOS
-        requireInteraction: true,
-        // Notification actions
-        actions: notificationData.actions || []
-      };
+      // If alert is a string
+      if (typeof aps.alert === 'string') {
+        title = 'StockHub Update';
+        options = {
+          body: aps.alert,
+          icon: notificationData.icon || '/logo192.png',
+          badge: '/favicon.ico',
+          data: notificationData.data || { url: '/' }
+        };
+      } 
+      // If alert is an object
+      else {
+        title = aps.alert.title || 'StockHub Update';
+        options = {
+          body: aps.alert.body || 'You have a new notification',
+          icon: notificationData.icon || '/logo192.png',
+          badge: '/favicon.ico',
+          data: notificationData.data || { url: '/' }
+        };
+      }
     }
-  } else {
-    // Standard format
-    options = {
+    
+    // Add other options
+    options.vibrate = [100, 50, 100];
+    options.requireInteraction = true;
+    options.tag = 'stockhub-notification';
+    options.actions = notificationData.actions || [];
+    
+    console.log('[StockHub Service Worker] Showing iOS notification:', title, options);
+    
+    // Show the notification
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+        .then(() => {
+          console.log('[StockHub Service Worker] iOS notification displayed successfully');
+        })
+        .catch(err => {
+          console.error('[StockHub Service Worker] Error showing iOS notification:', err);
+        })
+    );
+  } 
+  // Standard format
+  else {
+    const title = notificationData.title || 'StockHub Update';
+    
+    const options = {
       body: notificationData.body || 'You have a new notification',
       icon: notificationData.icon || '/logo192.png',
       badge: '/favicon.ico',
       data: notificationData.data || { url: '/' },
-      // Add vibration pattern for mobile
       vibrate: [100, 50, 100],
-      // Make sure notification stays visible on iOS
       requireInteraction: true,
-      // Tag to group notifications
       tag: 'stockhub-notification',
-      // Notification actions
       actions: notificationData.actions || []
     };
+    
+    console.log('[StockHub Service Worker] Showing standard notification:', title, options);
+    
+    // Show the notification
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+        .then(() => {
+          console.log('[StockHub Service Worker] Standard notification displayed successfully');
+        })
+        .catch(err => {
+          console.error('[StockHub Service Worker] Error showing standard notification:', err);
+        })
+    );
   }
-  
-  console.log('[StockHub Service Worker] Showing notification:', title, options);
-  
-  // Show the notification
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-      .then(() => {
-        console.log('[StockHub Service Worker] Notification displayed successfully');
-      })
-      .catch(err => {
-        console.error('[StockHub Service Worker] Error showing notification:', err);
-      })
-  );
 });
 
 // Notification click event
