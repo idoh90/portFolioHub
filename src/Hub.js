@@ -7,6 +7,7 @@ import { getQuote } from './api/quote';
 import './Hub.css';
 import FriendPortfolioModal from './FriendPortfolioModal';
 import ActivityFeed from './ActivityFeed';
+import { OptionsContext } from './OptionsContext';
 
 // Utility to calculate average buy price for a ticker from transactions
 function calculateAvgBuyPrice(transactions, ticker) {
@@ -178,6 +179,7 @@ function useQuotesForTickers(tickers) {
 }
 
 function usePortfolioStats(positions) {
+  const { options } = useContext(OptionsContext);
   const [stats, setStats] = useState({
     totalValue: 0,
     totalPL: 0,
@@ -185,8 +187,13 @@ function usePortfolioStats(positions) {
     hasLiveData: true
   });
 
-  // Get all unique tickers from positions
-  const tickers = useMemo(() => positions.map(pos => pos.ticker), [positions]);
+  // Get all unique tickers from positions and options
+  const tickers = useMemo(() => {
+    const stockTickers = positions.map(pos => pos.ticker);
+    const optionTickers = options ? options.map(opt => opt.ticker) : [];
+    return [...new Set([...stockTickers, ...optionTickers])];
+  }, [positions, options]);
+
   const quotes = useQuotesForTickers(tickers);
 
   useEffect(() => {
@@ -195,6 +202,7 @@ function usePortfolioStats(positions) {
     let yesterdayValue = 0;
     let hasLiveData = true;
 
+    // Calculate stock values
     positions.forEach(pos => {
       const quote = quotes[pos.ticker];
       if (!quote || quote.loading || quote.price === null) {
@@ -209,6 +217,61 @@ function usePortfolioStats(positions) {
       });
     });
 
+    // Calculate option values
+    if (options && options.length > 0) {
+      options.forEach(opt => {
+        const quote = quotes[opt.ticker];
+        if (!quote || quote.loading || quote.price === null) {
+          hasLiveData = false;
+        }
+        
+        const contracts = Number(opt.contracts);
+        const premium = Number(opt.premium);
+        
+        // For option value approximation (would use proper option pricing in real app)
+        // Here we just use a simple approximation based on underlying price movement
+        const currentPrice = quote?.price || 0;
+        const buyPrice = Number(opt.strike);
+        
+        let optionValue = 0;
+        const contractMultiplier = 100; // Each contract is for 100 shares
+        
+        if (opt.type === 'CALL') {
+          if (opt.direction === 'LONG') {
+            // For long calls: current value approximation
+            optionValue = contracts * Math.max(0, currentPrice - buyPrice) * contractMultiplier;
+            // Add time value approximation (simplified)
+            if (optionValue === 0) optionValue = contracts * premium * contractMultiplier * 0.5;
+          } else {
+            // For short calls: potential liability
+            optionValue = -contracts * Math.max(0, currentPrice - buyPrice) * contractMultiplier;
+          }
+        } else if (opt.type === 'PUT') {
+          if (opt.direction === 'LONG') {
+            // For long puts: current value approximation
+            optionValue = contracts * Math.max(0, buyPrice - currentPrice) * contractMultiplier;
+            // Add time value approximation (simplified)
+            if (optionValue === 0) optionValue = contracts * premium * contractMultiplier * 0.5;
+          } else {
+            // For short puts: potential liability
+            optionValue = -contracts * Math.max(0, buyPrice - currentPrice) * contractMultiplier;
+          }
+        }
+        
+        // Cost basis
+        const optionCost = opt.direction === 'LONG' 
+          ? contracts * premium * contractMultiplier 
+          : -contracts * premium * contractMultiplier;
+        
+        // Yesterday approximation
+        const optionYesterdayValue = optionValue * 0.99;
+        
+        totalValue += optionValue;
+        totalCost += optionCost;
+        yesterdayValue += optionYesterdayValue;
+      });
+    }
+
     const totalPL = totalValue - totalCost;
     const dailyPL = totalCost ? (((totalValue - yesterdayValue) / totalCost) * 100) : 0;
     
@@ -218,7 +281,7 @@ function usePortfolioStats(positions) {
       dailyPL,
       hasLiveData
     });
-  }, [positions, quotes]);
+  }, [positions, options, quotes]);
 
   return stats;
 }
@@ -233,7 +296,7 @@ function useFriendPortfolioStats(friendName) {
     hasLiveData: false
   });
 
-  // Get positions from localStorage
+  // Get positions and options from localStorage
   const positions = useMemo(() => {
     try {
       const key = `positions_${friendName}`;
@@ -249,8 +312,26 @@ function useFriendPortfolioStats(friendName) {
     }
   }, [friendName]);
 
-  // Get all unique tickers from positions
-  const tickers = useMemo(() => positions.map(pos => pos.ticker), [positions]);
+  const options = useMemo(() => {
+    try {
+      const key = `options_${friendName}`;
+      const optionsData = localStorage.getItem(key);
+      if (!optionsData) return [];
+      
+      return JSON.parse(optionsData);
+    } catch (error) {
+      console.error(`Error loading ${friendName}'s options:`, error);
+      return [];
+    }
+  }, [friendName]);
+
+  // Get all unique tickers from positions and options
+  const tickers = useMemo(() => {
+    const stockTickers = positions.map(pos => pos.ticker);
+    const optionTickers = options.map(opt => opt.ticker);
+    return [...new Set([...stockTickers, ...optionTickers])];
+  }, [positions, options]);
+
   const quotes = useQuotesForTickers(tickers);
 
   useEffect(() => {
@@ -261,6 +342,7 @@ function useFriendPortfolioStats(friendName) {
     let biggestStockValue = 0;
     let hasLiveData = true;
 
+    // Calculate stock values
     positions.forEach(pos => {
       const quote = quotes[pos.ticker];
       if (!quote || quote.loading || quote.price === null) {
@@ -288,6 +370,32 @@ function useFriendPortfolioStats(friendName) {
       }
     });
 
+    // Calculate option values
+    options.forEach(opt => {
+      const quote = quotes[opt.ticker];
+      if (!quote || quote.loading || quote.price === null) {
+        hasLiveData = false;
+      }
+      const contracts = Number(opt.contracts);
+      const premium = Number(opt.premium);
+      const currentPrice = quote?.price || premium;
+      
+      // For options, we'll use a simple approximation of current value
+      // In a real app, you'd want to use proper option pricing models
+      const optionValue = contracts * currentPrice * 100;
+      const optionCost = contracts * premium * 100;
+      const optionYesterdayValue = contracts * (currentPrice * 0.99) * 100;
+      
+      totalValue += optionValue;
+      totalCost += optionCost;
+      yesterdayValue += optionYesterdayValue;
+      
+      if (optionValue > biggestStockValue) {
+        biggestStockValue = optionValue;
+        biggestStock = `${opt.ticker} ${opt.type}`;
+      }
+    });
+
     const totalPL = totalValue - totalCost;
     const plPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
     // Calculate daily P/L as percentage based on yesterday's value
@@ -302,7 +410,7 @@ function useFriendPortfolioStats(friendName) {
       biggestStockValue,
       hasLiveData
     });
-  }, [positions, quotes]);
+  }, [positions, options, quotes]);
 
   return stats;
 }
@@ -424,7 +532,10 @@ const Hub = () => {
         </div>
       </div>
       <div className="welcome-message">Welcome, {user}</div>
-      <button className="mystocks-btn modern-button" onClick={() => navigate('/mystocks')}>My Stocks</button>
+      <div className="buttons-container">
+        <button className="mystocks-btn modern-button" onClick={() => navigate('/mystocks')}>My Stocks</button>
+        <button className="myoptions-btn modern-button" onClick={() => navigate('/myoptions')}>My Options</button>
+      </div>
       
       <div className="friends-section">
         <div className="friends-header">

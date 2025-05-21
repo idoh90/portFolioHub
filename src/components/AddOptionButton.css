@@ -1,0 +1,43 @@
+.floating-add-option-btn {
+  position: fixed;
+  bottom: 1.8rem;
+  right: 1.8rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(90deg, #E94545 0%, #FFD166 100%);
+  color: white;
+  font-size: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.floating-add-option-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.4);
+}
+
+.floating-add-option-btn:active {
+  transform: scale(0.98);
+}
+
+.floating-add-option-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .floating-add-option-btn {
+    bottom: 1.5rem;
+    right: 1.5rem;
+    width: 3.2rem;
+    height: 3.2rem;
+    font-size: 1.5rem;
+  }
+} 

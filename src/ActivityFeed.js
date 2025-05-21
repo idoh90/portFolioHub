@@ -1,100 +1,99 @@
-import React, { useContext, useRef, useEffect } from 'react';
+import React, { useContext } from 'react';
 import { ActivityFeedContext } from './ActivityFeedContext';
 import './ActivityFeed.css';
 
 const ActivityFeed = () => {
-  const { activities, isScrollLocked, setIsScrollLocked, hasNewActivity, scrollToLatest } = useContext(ActivityFeedContext);
-  const feedRef = useRef(null);
-  const [collapsed, setCollapsed] = React.useState(window.innerWidth < 768);
+  const { activities } = useContext(ActivityFeedContext);
 
-  // Format timestamp to local time
+  // Format timestamp to human-readable time
   const formatTime = (timestamp) => {
+    if (!timestamp) return '';
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Format amount with currency symbol
-  const formatAmount = (amount, actionType) => {
-    const sign = actionType === 'sell' ? '-' : '+';
-    return `${sign}₪${parseFloat(amount).toLocaleString()}`;
-  };
-
-  // Determine text color based on action type
-  const getTextColor = (actionType) => {
-    switch (actionType) {
-      case 'buy': return 'activity-buy';
-      case 'sell': return 'activity-sell';
-      default: return 'activity-edit';
-    }
-  };
-
-  // Handle scroll events to detect when user scrolls up
-  const handleScroll = () => {
-    if (feedRef.current) {
-      const { scrollTop, scrollHeight, clientHeight } = feedRef.current;
-      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 10;
-      setIsScrollLocked(!isAtBottom);
-    }
-  };
-
-  // Scroll to bottom when new activities arrive if not locked
-  useEffect(() => {
-    if (feedRef.current && !isScrollLocked) {
-      feedRef.current.scrollTop = feedRef.current.scrollHeight;
-    }
-  }, [activities, isScrollLocked]);
-
-  // Listen for window resize to auto-collapse on mobile
-  useEffect(() => {
-    const handleResize = () => {
-      setCollapsed(window.innerWidth < 768);
-    };
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.round(diffMs / (1000 * 60));
     
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Toggle collapsed state
-  const toggleCollapsed = () => {
-    setCollapsed(!collapsed);
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    
+    if (date.toDateString() === now.toDateString()) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    if (date.getFullYear() === now.getFullYear()) {
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    
+    return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
   };
+
+  const formatAmount = (amount) => {
+    return amount.toLocaleString('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0
+    });
+  };
+
+  const getActionEmoji = (actionType) => {
+    switch (actionType) {
+      case 'buy':
+        return '🟢';
+      case 'sell':
+        return '🔴';
+      case 'edit':
+        return '✏️';
+      default:
+        return '•';
+    }
+  };
+
+  const getActionText = (actionType) => {
+    switch (actionType) {
+      case 'buy':
+        return 'bought';
+      case 'sell':
+        return 'sold';
+      case 'edit':
+        return 'edited';
+      default:
+        return actionType;
+    }
+  };
+
+  // Show up to 20 recent activities
+  const recentActivities = activities.slice(0, 20);
 
   return (
-    <div className={`activity-feed-container ${collapsed ? 'collapsed' : ''}`}>
-      <div className="activity-feed-header">
-        <h3>Activity Feed</h3>
-        <button 
-          className="toggle-button" 
-          onClick={toggleCollapsed}
-          aria-label={collapsed ? "Expand feed" : "Collapse feed"}
-        >
-          {collapsed ? '▲' : '▼'}
-        </button>
-        {hasNewActivity && !collapsed && (
-          <button className="latest-button" onClick={scrollToLatest}>
-            Latest
-          </button>
+    <div className="activity-feed">
+      <h3 className="activity-feed-title">Recent Activity</h3>
+      <div className="activities-list">
+        {recentActivities.length > 0 ? (
+          recentActivities.map((activity, index) => (
+            <div key={index} className="activity-item">
+              <div className="activity-main">
+                <span className="activity-emoji">{getActionEmoji(activity.actionType)}</span>
+                <div className="activity-content">
+                  <div className="activity-user-action">
+                    <span className="activity-user">{activity.userId || 'Anonymous'}</span>
+                    <span className="activity-text">
+                      {getActionText(activity.actionType)} 
+                      <span className="activity-ticker"> {activity.ticker}</span>
+                    </span>
+                  </div>
+                  <div className="activity-time">{formatTime(activity.timestamp)}</div>
+                </div>
+              </div>
+              <span className="activity-amount">{formatAmount(activity.amount)}</span>
+            </div>
+          ))
+        ) : (
+          <div className="no-activities">No recent activities</div>
         )}
       </div>
-      
-      {!collapsed && (
-        <div className="activity-feed-content" ref={feedRef} onScroll={handleScroll}>
-          {activities.length === 0 ? (
-            <div className="no-activity">No recent activity</div>
-          ) : (
-            activities.map((activity, index) => (
-              <div key={index} className="activity-item">
-                <span className="activity-time">{formatTime(activity.timestamp)}</span>
-                <span className="activity-user">{activity.userId}</span>
-                <span className="activity-ticker">{activity.ticker}</span>
-                <span className={`activity-amount ${getTextColor(activity.actionType)}`}>
-                  {formatAmount(activity.amount, activity.actionType)}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
     </div>
   );
 };

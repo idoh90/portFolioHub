@@ -1,0 +1,147 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.friend-portfolio-modal {
+  background: #23272f;
+  color: #ffffff;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  width: 90%;
+  max-width: 450px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid #353a45;
+}
+
+.modal-header h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.close-modal-btn {
+  background: none;
+  border: none;
+  color: #b0b8c1;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.3rem;
+  transition: background 0.15s, color 0.15s;
+}
+
+.close-modal-btn:hover {
+  background: #353a45;
+  color: #ff5c5c;
+}
+
+.portfolio-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.portfolio-section h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: #b0b8c1;
+}
+
+.positions-list, .options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.position-item, .option-item {
+  background: #2a2f3a;
+  border-radius: 0.8rem;
+  padding: 1rem;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.position-item:hover, .option-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.position-header, .option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.ticker {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.shares, .contracts {
+  font-size: 0.9rem;
+  color: #b0b8c1;
+}
+
+.position-details, .option-details {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+  color: #b0b8c1;
+}
+
+.option-item.call {
+  border-left: 3px solid #2ee59d;
+}
+
+.option-item.put {
+  border-left: 3px solid #E94545;
+}
+
+.loading {
+  text-align: center;
+  color: #b0b8c1;
+  padding: 2rem 0;
+}
+
+.empty-portfolio {
+  text-align: center;
+  color: #b0b8c1;
+  padding: 2rem 0;
+  font-style: italic;
+}
+
+@media (max-width: 480px) {
+  .friend-portfolio-modal {
+    width: 95%;
+    padding: 1.2rem;
+  }
+
+  .modal-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .position-details, .option-details {
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+} 

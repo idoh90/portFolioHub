@@ -1,0 +1,121 @@
+.newoption-container {
+  min-height: 100vh;
+  background: #181818;
+  color: #fff;
+  padding: 2.2rem 0.5rem 1.5rem 0.5rem;
+  max-width: 400px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.newoption-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.01em;
+  color: #E94545;
+  text-align: left;
+  padding-left: 0.2rem;
+}
+
+.newoption-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.newoption-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #b0b8c1;
+}
+
+.newoption-form input[type="text"],
+.newoption-form input[type="number"],
+.newoption-form input[type="date"],
+.newoption-form select {
+  margin-top: 0.3rem;
+  padding: 0.6em 1em;
+  border-radius: 0.7em;
+  border: none;
+  background: #23272f;
+  color: #fff;
+  font-size: 1.08rem;
+  margin-bottom: 0.2rem;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: box-shadow 0.15s;
+}
+
+.newoption-form input:focus,
+.newoption-form select:focus {
+  box-shadow: 0 2px 8px rgba(233, 69, 69, 0.3);
+}
+
+.add-option-btn {
+  padding: 0.7em 1.2em;
+  border-radius: 0.7em;
+  border: none;
+  font-size: 1.08rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: linear-gradient(90deg, #E94545 0%, #FFD166 100%);
+  color: #fff;
+  transition: background 0.18s, color 0.18s;
+}
+
+.add-option-btn:hover {
+  background: linear-gradient(90deg, #FFD166 0%, #E94545 100%);
+}
+
+.newoption-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1.2rem;
+}
+
+.cancel-option-btn {
+  padding: 0.7em 1.2em;
+  border-radius: 0.7em;
+  border: none;
+  font-size: 1.08rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: #23272f;
+  color: #E94545;
+  transition: background 0.18s, color 0.18s;
+}
+
+.cancel-option-btn:hover {
+  background: #E94545;
+  color: #fff;
+}
+
+@media (max-width: 480px) {
+  .newoption-container {
+    max-width: 100vw;
+    padding: 1rem 0.2rem 1rem 0.2rem;
+  }
+  .newoption-title {
+    font-size: 1.1rem;
+    padding-left: 0.1rem;
+  }
+  .newoption-form {
+    gap: 0.5rem;
+  }
+  .newoption-form input[type="text"],
+  .newoption-form input[type="number"],
+  .newoption-form input[type="date"],
+  .newoption-form select {
+    font-size: 0.98rem;
+    padding: 0.5em 0.7em;
+  }
+  .add-option-btn, .cancel-option-btn {
+    font-size: 1rem;
+    padding: 0.6em 1em;
+  }
+} 
