@@ -7,6 +7,7 @@ import Hub from './Hub';
 import LoginPage from './pages/LoginPage';
 import { AuthProvider } from './AuthContext';
 import './App.css';
+import './ios-fixes.css';
 import PrivateRoute from './PrivateRoute';
 import MyStocksPage from './pages/MyStocksPage';
 import NewPositionPage from './pages/NewPositionPage';
