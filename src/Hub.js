@@ -9,6 +9,7 @@ import FriendPortfolioModal from './FriendPortfolioModal';
 import ActivityFeed from './ActivityFeed';
 import { OptionsContext } from './OptionsContext';
 import NotificationButton from './components/NotificationButton';
+import NotificationDebugger from './components/NotificationDebugger';
 import './components/NotificationButton.css';
 import { ref, set, onValue, off, get, serverTimestamp } from 'firebase/database';
 import { db } from './firebase';
@@ -1463,6 +1464,7 @@ const Hub = () => {
         <h1>Hub Dashboard</h1>
         <p>ברוכים הבאים מגיז, זהו אתר לדוגמה כדי לתת לנו לאונן אחד לשני תוך כדי שאנחנו רואים מה ההשקעות של כל אחד ולהתחרות בצורה ידידותית אחד בשני. אוהב אתכם המון המון</p>
       </main>
+      <NotificationDebugger />
     </div>
   );
 };
