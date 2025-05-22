@@ -80,10 +80,10 @@ export function NotificationProvider({ children }) {
       
       console.log("Notification payload:", notification);
       
-      // Send notification to server for broadcasting
-      const apiUrl = process.env.NODE_ENV === 'production'
-        ? '/api/broadcast-notification'
-        : 'http://localhost:5000/api/broadcast-notification';
+      // Determine API URL based on environment
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const API_BASE_URL = isDevelopment ? 'http://localhost:5000' : ''; // Adjust port if your server runs elsewhere
+      const apiUrl = `${API_BASE_URL}/api/broadcast-notification`;
       
       console.log(`Sending notification to: ${apiUrl}`);
         
@@ -97,11 +97,18 @@ export function NotificationProvider({ children }) {
         }),
       });
       
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Failed to send notification to server:", response.status, errorData);
+        throw new Error('Failed to send notification to server');
+      }
+      
       const result = await response.json();
       console.log("Notification broadcast response:", result);
       
     } catch (error) {
       console.error('Error sending trade notification:', error);
+      // Add a user-facing error message here if needed
     }
   };
 
