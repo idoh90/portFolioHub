@@ -9,7 +9,7 @@ import FriendPortfolioModal from './FriendPortfolioModal';
 import ActivityFeed from './ActivityFeed';
 import { OptionsContext } from './OptionsContext';
 import NotificationButton from './components/NotificationButton';
-import NotificationDebugger from './components/NotificationDebugger';
+
 import './components/NotificationButton.css';
 import { ref, set, onValue, off, get, serverTimestamp } from 'firebase/database';
 import { db } from './firebase';
@@ -159,7 +159,6 @@ const cleanupOfekMockData = () => {
         // Remove any AAPL positions (mock data)
         const cleanedPositions = positions.filter(pos => pos && pos.ticker !== 'AAPL');
         localStorage.setItem(positionsKey, JSON.stringify(cleanedPositions));
-        console.log('Cleaned up Ofek positions:', cleanedPositions);
       }
     }
     
@@ -174,7 +173,6 @@ const cleanupOfekMockData = () => {
           opt && (opt.ticker !== 'AAPL' && !(opt.ticker === 'CLSK' && opt.type === 'CALL'))
         );
         localStorage.setItem(optionsKey, JSON.stringify(cleanedOptions));
-        console.log('Cleaned up Ofek options:', cleanedOptions);
       }
     }
   } catch (e) {
@@ -235,6 +233,7 @@ const purgeAllMockData = () => {
   cleanupSoldItems();
   
   console.log('All mock data purged');
+  return true;
 };
 
 // Export functions to window for access from other components
@@ -324,38 +323,32 @@ export function useLastOnlineTime(username) {
   useEffect(() => {
     if (!username) return;
     
-    console.log(`Setting up listener for ${username}'s online status`);
+    // Set up a listener for this user's online status
+    const statusRef = ref(db, `userStatus/${username}`);
     
-    // Get user status from Firebase
-    const userStatusRef = ref(db, `userStatus/${username}`);
-    
-    // Set up a listener for real-time updates
-    const statusListener = onValue(userStatusRef, (snapshot) => {
+    // Listen for changes to this user's status
+    onValue(statusRef, (snapshot) => {
       const data = snapshot.val();
-      console.log(`Received status update for ${username}:`, data);
       
       if (data && data.lastOnline) {
         setLastOnline(new Date(data.lastOnline));
         
-        // Important: If the user is explicitly marked as online, consider them online
         if (data.isOnline === true) {
-          console.log(`${username} is explicitly marked as online`);
           setIsOnline(true);
-          return;
-        }
-        
-        // Check if last updated time is recent (within 3 minutes)
-        // This handles the case where isOnline might be false but the user is actually active
-        if (data.lastUpdated) {
-          const lastUpdateTime = typeof data.lastUpdated === 'number' 
-            ? data.lastUpdated 
-            : new Date(data.lastUpdated).getTime();
-          
-          const isRecentlyActive = (Date.now() - lastUpdateTime) < 3 * 60 * 1000;
-          console.log(`${username} last updated time: ${new Date(lastUpdateTime).toLocaleString()}, isRecentlyActive: ${isRecentlyActive}`);
-          setIsOnline(isRecentlyActive);
+          setLastOnline(null);
         } else {
-          setIsOnline(false);
+          // Check if last updated time is recent (within 3 minutes)
+          // This handles the case where isOnline might be false but the user is actually active
+          if (data.lastUpdated) {
+            const lastUpdateTime = typeof data.lastUpdated === 'number' 
+              ? data.lastUpdated 
+              : new Date(data.lastUpdated).getTime();
+            
+            const isRecentlyActive = (Date.now() - lastUpdateTime) < 3 * 60 * 1000;
+            setIsOnline(isRecentlyActive);
+          } else {
+            setIsOnline(false);
+          }
         }
       } else {
         // No Firebase data, fall back to localStorage
@@ -374,8 +367,7 @@ export function useLastOnlineTime(username) {
     
     // Cleanup listener on unmount
     return () => {
-      console.log(`Removing listener for ${username}'s online status`);
-      off(userStatusRef, 'value', statusListener);
+      off(statusRef, 'value');
     };
   }, [username]);
 
@@ -554,10 +546,8 @@ function useQuotesForTickers(tickers) {
 
   // Fetch all quotes
   const fetchAll = async () => {
-    console.log('Tickers to fetch:', tickers);
     const results = {};
     for (const ticker of tickers) {
-      console.log('Fetching quote for', ticker);
       results[ticker] = { price: null, loading: true };
       const price = await getQuote(ticker);
       results[ticker] = { price, loading: false };
@@ -861,15 +851,10 @@ const FriendCard = ({ friendName }) => {
     const friendStatusRef = ref(db, `userStatus/${friendName}`);
     get(friendStatusRef).then(snapshot => {
       const data = snapshot.val();
-      console.log(`Manual refresh status for ${friendName}:`, data);
       
       // If we have data, update the timestamp to force a refresh
-      if (data) {
-        // Just triggering a read is enough to update the listener
-        console.log(`${friendName} status found, listener will update`);
-      } else {
+      if (!data) {
         // No data found, initialize with offline status
-        console.log(`No status found for ${friendName}, initializing...`);
         const localTimestamp = localStorage.getItem(`lastOnline_${friendName}`);
         const timestamp = localTimestamp || new Date().toISOString();
         
@@ -1046,12 +1031,7 @@ const FriendsPortfolios = ({ friends, currentUser }) => {
     // Check online status for all friends by triggering Firebase reads
     friends.forEach(friendName => {
       const friendStatusRef = ref(db, `userStatus/${friendName}`);
-      get(friendStatusRef).then(snapshot => {
-        const data = snapshot.val();
-        console.log(`Refreshing status for ${friendName}:`, data);
-        
-        // If not in Firebase yet, initialize from localStorage
-        if (!data) {
+            get(friendStatusRef).then(snapshot => {        const data = snapshot.val();                // If not in Firebase yet, initialize from localStorage        if (!data) {
           const localTimestamp = localStorage.getItem(`lastOnline_${friendName}`);
           if (localTimestamp) {
             // Initialize in Firebase with data from localStorage
@@ -1464,7 +1444,7 @@ const Hub = () => {
         <h1>Hub Dashboard</h1>
         <p>ברוכים הבאים מגיז, זהו אתר לדוגמה כדי לתת לנו לאונן אחד לשני תוך כדי שאנחנו רואים מה ההשקעות של כל אחד ולהתחרות בצורה ידידותית אחד בשני. אוהב אתכם המון המון</p>
       </main>
-      <NotificationDebugger />
+      
     </div>
   );
 };

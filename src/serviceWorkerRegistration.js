@@ -8,7 +8,7 @@
 // resources are updated in the background.
 
 const SERVICE_WORKER_VERSION = '1.0.1'; // Increment this when you update the service worker
-const DEBUG = true; // Set to true to enable detailed logging
+const DEBUG = false; // Disable debug logging in production
 
 const isLocalhost = Boolean(
   window.location.hostname === 'localhost' ||

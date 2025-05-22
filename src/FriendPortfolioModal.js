@@ -56,7 +56,6 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
     const friendStatusRef = ref(db, `userStatus/${friend.friendName}`);
     
     get(friendStatusRef).then(snapshot => {
-      console.log(`Modal refreshing status for ${friend.friendName}:`, snapshot.val());
       setTimeout(() => setRefreshingStatus(false), 800);
     }).catch(error => {
       console.error(`Error checking friend status in modal:`, error);
@@ -73,27 +72,10 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
+      setRefreshing(true);
       
       // Refresh online status
       refreshOnlineStatus();
-      
-      // Special cleanup for Ofek
-      if (friend.friendName === 'Ofek' && window.cleanupOfekMockData) {
-        try {
-          window.cleanupOfekMockData();
-        } catch (e) {
-          console.error("Error cleaning up Ofek data:", e);
-        }
-      }
-      
-      // If purgeAllMockData is available, use it
-      if (window.purgeAllMockData) {
-        try {
-          window.purgeAllMockData();
-        } catch (e) {
-          console.error("Error purging all mock data:", e);
-        }
-      }
       
       let totalValue = 0;
       let totalCost = 0;
@@ -123,60 +105,26 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
         });
       }
 
-      // First check activity feed for recent sells
+      // Fetch data directly from Firebase for the current friend
+      // First fetch stock positions
       try {
-        const activityData = localStorage.getItem('activityFeed');
-        if (activityData) {
-          const activities = JSON.parse(activityData);
-          const friendSellActivities = activities.filter(
-            activity => activity.user === friend.friendName && activity.action === 'sold'
-          );
-          
-          // If there are sell activities, process them
-          if (friendSellActivities.length > 0) {
-            console.log(`Found ${friendSellActivities.length} sell activities for ${friend.friendName}`);
-          }
-        }
-      } catch (activityError) {
-        console.error("Error checking activity feed:", activityError);
-      }
-
-      // Get positions from localStorage
-      try {
-        const storedPositions = localStorage.getItem(`positions_${friend.friendName}`);
-        if (storedPositions) {
-          const parsedPositions = JSON.parse(storedPositions);
+        const positionsRef = ref(db, `positions/${friend.friendName}`);
+        const positionsSnapshot = await get(positionsRef);
+        
+        if (positionsSnapshot.exists()) {
+          const positionsData = positionsSnapshot.val();
+          // Convert object to array
+          const positionsArray = Object.values(positionsData);
           
           // Filter out positions with no lots or empty lots arrays
-          const validPositions = parsedPositions.filter(pos => 
+          const validPositions = positionsArray.filter(pos => 
             pos && pos.ticker && pos.lots && Array.isArray(pos.lots) && pos.lots.length > 0
           );
-          
-          // Further validate against activity feed
-          const activityData = localStorage.getItem('activityFeed');
-          let filteredPositions = validPositions;
-          
-          if (activityData) {
-            const activities = JSON.parse(activityData);
-            const friendSellActivities = activities.filter(
-              activity => activity.user === friend.friendName && activity.action === 'sold' && activity.type === 'stock'
-            );
-            
-            if (friendSellActivities.length > 0) {
-              // Remove sold positions
-              filteredPositions = validPositions.filter(position => {
-                const soldActivity = friendSellActivities.find(
-                  activity => activity.ticker === position.ticker
-                );
-                return !soldActivity;
-              });
-            }
-          }
 
           // Fetch current stock prices for each position
-          const updatedPositions = await Promise.all(filteredPositions.map(async position => {
+          const updatedPositions = await Promise.all(validPositions.map(async position => {
             try {
-              // Use the useQuote API to fetch current prices
+              // Use the getQuote API to fetch current prices
               const tickerPrice = await getQuote(position.ticker);
               if (tickerPrice && tickerPrice > 0) {
                 return {
@@ -215,70 +163,78 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
               yesterdayValue += lotYesterdayValue;
             });
           });
+          
+          // Update localStorage with the latest data from Firebase
+          localStorage.setItem(`positions_${friend.friendName}`, JSON.stringify(updatedPositions));
         } else {
           setPositions([]);
+          localStorage.removeItem(`positions_${friend.friendName}`);
         }
       } catch (posError) {
-        console.error("Error parsing positions for friend:", friend.friendName, posError);
+        console.error("Error fetching positions for friend:", friend.friendName, posError);
         setPositions([]);
       }
 
-      // Get options from localStorage
+      // First check activity feed for recent sells
       try {
-        const storedOptions = localStorage.getItem(`options_${friend.friendName}`);
-        if (storedOptions) {
-          const parsedOptions = JSON.parse(storedOptions);
-          const validOptions = Array.isArray(parsedOptions) ? parsedOptions : [];
+        const activityData = localStorage.getItem('activityFeed');
+        if (activityData) {
+          const activities = JSON.parse(activityData);
+          const friendSellActivities = activities.filter(
+            activity => activity.user === friend.friendName && activity.action === 'sold'
+          );
           
-          // Further validate against activity feed
-          const activityData = localStorage.getItem('activityFeed');
-          let filteredOptions = validOptions;
+          // If there are sell activities, process them
+          if (friendSellActivities.length > 0) {
+            // We'll use these to filter out sold stocks/options
+          }
+        }
+      } catch (activityError) {
+        console.error("Error checking activity feed:", activityError);
+      }
+
+      // Fetch options directly from Firebase
+      try {
+        const optionsRef = ref(db, `options/${friend.friendName}`);
+        const optionsSnapshot = await get(optionsRef);
+        
+        if (optionsSnapshot.exists()) {
+          const optionsData = optionsSnapshot.val();
+          // Convert object to array if needed
+          const optionsArray = Array.isArray(optionsData) ? optionsData : Object.values(optionsData);
           
-          if (activityData) {
-            const activities = JSON.parse(activityData);
-            const friendSellActivities = activities.filter(
-              activity => activity.user === friend.friendName && activity.action === 'sold' && activity.type === 'option'
-            );
+          // Ensure valid options
+          const validOptions = optionsArray.filter(option => 
+            option && option.ticker && option.strike && option.expiration
+          );
+          
+          setOptions(validOptions);
+          
+          // Update localStorage with the latest data
+          localStorage.setItem(`options_${friend.friendName}`, JSON.stringify(validOptions));
+          
+          // Add options value to total portfolio value
+          validOptions.forEach(option => {
+            const contracts = Number(option.contracts) || 0;
+            const currentPrice = Number(option.currentPrice) || 0;
             
-            if (friendSellActivities.length > 0) {
-              // Remove sold options
-              filteredOptions = validOptions.filter(option => {
-                const soldActivity = friendSellActivities.find(
-                  activity => activity.ticker === option.ticker && activity.optionType === option.type
-                );
-                return !soldActivity;
-              });
-            }
-          }
-          
-          setOptions(filteredOptions);
-          
-          // Add options value to total stats
-          if (filteredOptions.length > 0) {
-            filteredOptions.forEach(option => {
-              if (!option) return;
-              
-              const contracts = Number(option.contracts) || 0;
-              const strike = Number(option.strike) || 0;
-              const premium = Number(option.premium) || 0;
-              
-              if (contracts <= 0 || premium <= 0) return; // Skip invalid data
-              
-              // Simple calculation for demonstration - this would be more complex in reality
-              const optionValue = contracts * premium * 100; // Each contract is 100 shares
-              const optionCost = contracts * premium * 100;
-              const optionYesterdayValue = optionValue * 0.99; // Approximate
-              
-              totalValue += optionValue;
-              totalCost += optionCost;
-              yesterdayValue += optionYesterdayValue;
-            });
-          }
+            if (contracts <= 0 || currentPrice <= 0) return;
+            
+            // Each contract represents 100 shares
+            const optionValue = contracts * currentPrice * 100;
+            totalValue += optionValue;
+            
+            // Add to yesterday's value with a small variance
+            const yesterdayOptionPrice = currentPrice * 0.98; // Assume 2% change
+            const yesterdayOptionValue = contracts * yesterdayOptionPrice * 100;
+            yesterdayValue += yesterdayOptionValue;
+          });
         } else {
           setOptions([]);
+          localStorage.removeItem(`options_${friend.friendName}`);
         }
       } catch (optError) {
-        console.error("Error parsing options for friend:", friend.friendName, optError);
+        console.error("Error fetching options for friend:", friend.friendName, optError);
         setOptions([]);
       }
 

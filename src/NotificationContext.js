@@ -8,9 +8,7 @@ export const NotificationContext = createContext(null);
 // Determine API URL based on environment
 // In production, this will be your Vercel deployment URL
 // In development, this will be your local server
-const API_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://port-folio-2e8ok728p-idoh90s-projects.vercel.app'
-  : 'http://localhost:5000';
+const API_URL = process.env.NODE_ENV === 'production'   ? 'https://port-folio-server.vercel.app'  : 'http://localhost:5000';
 
 export function NotificationProvider({ children }) {
   const { user } = useContext(AuthContext);
