@@ -1,10 +1,4 @@
-.login-container {
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: #181818;
-}
+.login-container {  min-height: 100vh;  min-height: 100dvh; /* Dynamic viewport height for modern browsers */  display: flex;  justify-content: center;  align-items: center;  background: #181818;}
 
 .login-box {
   background: #23272f;
@@ -85,25 +79,4 @@
   animation: shake 0.4s;
 }
 
-@media (max-width: 480px) {
-  .login-bg {
-    min-width: 100vw;
-    padding: 0;
-  }
-  .login-card {
-    min-width: 90vw;
-    max-width: 98vw;
-    padding: 1.2rem 0.5rem 1rem 0.5rem;
-  }
-  .login-title {
-    font-size: 1.1rem;
-  }
-  .login-input {
-    font-size: 1rem;
-    padding: 0.7rem 0.7rem;
-  }
-  .login-btn {
-    font-size: 1rem;
-    padding: 0.7rem 0.7rem;
-  }
-} 
+@media (max-width: 480px) {  .login-bg {    min-width: 100vw;    padding: 0;  }  .login-card {    min-width: 90vw;    max-width: 98vw;    padding: 1.2rem 0.5rem 1rem 0.5rem;  }  .login-title {    font-size: 1.1rem;  }  .login-input {    font-size: 1rem;    padding: 0.7rem 0.7rem;  }  .login-btn {    font-size: 1rem;    padding: 0.7rem 0.7rem;  }}/* PWA safe area fixes */@supports (padding-top: env(safe-area-inset-top)) {  .pwa-container.login-container {    padding-top: env(safe-area-inset-top);    padding-bottom: env(safe-area-inset-bottom);    padding-left: env(safe-area-inset-left);    padding-right: env(safe-area-inset-right);  }} 

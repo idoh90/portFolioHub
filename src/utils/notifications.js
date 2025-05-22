@@ -12,7 +12,8 @@ export const detectIOSVersion = () => {
     isIOS: false, 
     version: null,
     deviceType: null,
-    supportsNotifications: false
+    supportsNotifications: true, // Non-iOS devices typically support notifications
+    isStandalone: false
   };
   
   // Determine device type
@@ -30,7 +31,7 @@ export const detectIOSVersion = () => {
     // Calculate full version number
     const version = majorVersion + (minorVersion / 10) + (patchVersion / 100);
     
-    // Check for notification support
+    // Check for notification support (iOS 16.4+ for web push notifications)
     const supportsNotifications = majorVersion > 16 || 
                                 (majorVersion === 16 && minorVersion >= 4);
     
@@ -51,14 +52,17 @@ export const detectIOSVersion = () => {
     };
   }
   
+  // Fallback for iOS devices where we can't parse the version
+  const isStandalone = window.navigator.standalone || 
+                      window.matchMedia('(display-mode: standalone)').matches;
+  
   return { 
     isIOS: true, 
     version: null,
     versionDetails: null,
     deviceType,
-    supportsNotifications: false,
-    isStandalone: window.navigator.standalone || 
-                  window.matchMedia('(display-mode: standalone)').matches
+    supportsNotifications: false, // Conservative approach - assume no support if we can't determine version
+    isStandalone
   };
 };
 
@@ -116,9 +120,9 @@ export function urlBase64ToUint8Array(base64String) {
 export const getVapidPublicKey = async () => {
   try {
     // Determine API URL based on environment
-    const API_URL = process.env.NODE_ENV === 'production' 
-      ? 'https://port-folio-server.vercel.app'
-      : 'http://localhost:5000';
+    const API_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:5000'
+      : 'https://port-folio-server.vercel.app';
       
     const apiUrl = `${API_URL}/api/vapid-public-key`;
     
@@ -184,9 +188,9 @@ export const sendSubscriptionToServer = async (subscription) => {
     const userId = currentUser || 'anonymous';
     
     // Determine API URL based on environment
-    const API_URL = process.env.NODE_ENV === 'production' 
-      ? 'https://port-folio-server.vercel.app'
-      : 'http://localhost:5000';
+    const API_URL = window.location.hostname === 'localhost'
+      ? 'http://localhost:5000'
+      : 'https://port-folio-server.vercel.app';
       
     const apiUrl = `${API_URL}/api/push-subscriptions`;
     

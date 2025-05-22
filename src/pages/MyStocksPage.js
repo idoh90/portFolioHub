@@ -230,7 +230,7 @@ const MyStocksPage = () => {
   const canAdd = positions.length < MAX_POSITIONS;
 
   return (
-    <div className="mystocks-container">
+    <div className="mystocks-container pwa-container">
       <button className="back-btn modern-button" onClick={() => navigate('/hub')} title="Back">←</button>
       <h1 className="mystocks-title">My Stocks</h1>
       

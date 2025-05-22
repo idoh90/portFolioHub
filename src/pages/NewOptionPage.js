@@ -38,7 +38,7 @@ const NewOptionPage = () => {
   };
 
   return (
-    <div className="newoption-container">
+    <div className="newoption-container pwa-container">
       <h1 className="newoption-title">Add New Option</h1>
       <form className="newoption-form" onSubmit={handleSubmit}>
         <label>

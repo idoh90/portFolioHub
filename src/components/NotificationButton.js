@@ -99,14 +99,20 @@ const NotificationButton = () => {
   };
 
   const handleRequestPermission = async () => {
+    console.log('NotificationButton: Requesting permission...');
+    
     // For iOS, check if it supports notifications and is installed to home screen
     if (iosInfo.isIOS) {
+      console.log('NotificationButton: iOS device detected', iosInfo);
+      
       if (!iosInfo.supportsNotifications) {
+        console.warn('NotificationButton: iOS version does not support notifications');
         alert('Your iOS version does not support web push notifications. Please update to iOS 16.4 or later.');
         return;
       }
       
       if (!isStandalone) {
+        console.warn('NotificationButton: App not in standalone mode');
         alert('Please add this app to your home screen to enable notifications.');
         return;
       }
@@ -115,36 +121,56 @@ const NotificationButton = () => {
     setIsLoading(true);
     
     try {
+      console.log('NotificationButton: Requesting notification permission...');
       const permissionGranted = await requestNotificationPermission();
+      console.log('NotificationButton: Permission result:', permissionGranted);
+      
       setPermissionState(Notification.permission);
       
       if (permissionGranted && !isSubscribed) {
+        console.log('NotificationButton: Permission granted, subscribing...');
         await handleSubscribe();
+      } else if (!permissionGranted) {
+        console.warn('NotificationButton: Permission not granted');
       }
     } catch (error) {
-      console.error('Error requesting notification permission:', error);
+      console.error('NotificationButton: Error requesting permission:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSubscribe = async () => {
+    console.log('NotificationButton: Starting subscription process...');
     setIsLoading(true);
     
     try {
+      console.log('NotificationButton: Calling subscribeToPushNotifications...');
       const subscription = await subscribeToPushNotifications();
+      console.log('NotificationButton: Subscription result:', subscription);
       
       if (subscription) {
-        await sendSubscriptionToServer(subscription);
-        setIsSubscribed(true);
+        console.log('NotificationButton: Sending subscription to server...');
+        const serverResult = await sendSubscriptionToServer(subscription);
+        console.log('NotificationButton: Server result:', serverResult);
         
-        // Enable notifications in our context
-        if (!notificationsEnabled) {
-          await toggleNotifications();
+        if (serverResult) {
+          setIsSubscribed(true);
+          console.log('NotificationButton: Subscription successful');
+          
+          // Enable notifications in our context
+          if (!notificationsEnabled) {
+            console.log('NotificationButton: Enabling notifications in context...');
+            await toggleNotifications();
+          }
+        } else {
+          console.error('NotificationButton: Failed to save subscription to server');
         }
+      } else {
+        console.error('NotificationButton: Failed to create push subscription');
       }
     } catch (error) {
-      console.error('Error subscribing to push notifications:', error);
+      console.error('NotificationButton: Error subscribing to push notifications:', error);
     } finally {
       setIsLoading(false);
     }
@@ -164,13 +190,24 @@ const NotificationButton = () => {
       if (subscription) {
         await subscription.unsubscribe();
         
+        // Get current user from local storage
+        const currentUser = localStorage.getItem('currentUser');
+        const userId = currentUser || 'anonymous';
+        
+        // Determine API URL based on environment
+        const API_URL = window.location.hostname === 'localhost' 
+          ? 'http://localhost:5000'
+          : 'https://port-folio-server.vercel.app';
+          
+        const apiUrl = `${API_URL}/api/push-subscriptions`;
+        
         // Notify server about unsubscription
-        await fetch('/api/push-subscriptions', {
+        await fetch(apiUrl, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(subscription),
+          body: JSON.stringify({ userId }),
         });
         
         setIsSubscribed(false);

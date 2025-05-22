@@ -83,87 +83,111 @@ self.addEventListener('push', function(event) {
   let notificationData = {};
   
   try {
-    notificationData = event.data.json();
-    log('Push data:', notificationData);
+    if (event.data) {
+      notificationData = event.data.json();
+      log('Push data:', notificationData);
+    } else {
+      log('No push data received');
+      notificationData = {
+        title: 'StockHub Update',
+        body: 'You have a new notification'
+      };
+    }
   } catch (e) {
     log('Error parsing push data:', e);
     notificationData = {
-      title: 'New Notification',
-      body: event.data ? event.data.text() : 'No payload'
+      title: 'StockHub Update',
+      body: event.data ? event.data.text() : 'You have a new notification'
     };
   }
   
-  // First check for iOS-specific format
-  if (notificationData.aps) {
-    log('Using iOS format');
+  // Prepare notification options
+  let title = 'StockHub Update';
+  let options = {
+    body: 'You have a new notification',
+    icon: '/logo192.png',
+    badge: '/favicon.ico',
+    data: { url: '/' },
+    vibrate: [100, 50, 100],
+    requireInteraction: true,
+    tag: 'stockhub-notification',
+    silent: false,
+    renotify: true
+  };
+  
+  // Handle iOS-specific format first
+  if (notificationData.aps && notificationData.aps.alert) {
+    log('Processing iOS APS format');
     
-    // Extract iOS format
     const aps = notificationData.aps;
-    let title = 'StockHub Update';
-    let options = {};
     
-    if (aps.alert) {
-      // If alert is a string
-      if (typeof aps.alert === 'string') {
-        title = 'StockHub Update';
-        options = {
-          body: aps.alert,
-          icon: notificationData.icon || '/logo192.png',
-          badge: '/favicon.ico',
-          data: notificationData.data || { url: '/' }
-        };
-      } 
-      // If alert is an object
-      else {
-        title = aps.alert.title || 'StockHub Update';
-        options = {
-          body: aps.alert.body || 'You have a new notification',
-          icon: notificationData.icon || '/logo192.png',
-          badge: '/favicon.ico',
-          data: notificationData.data || { url: '/' }
-        };
-      }
+    if (typeof aps.alert === 'string') {
+      title = 'StockHub Update';
+      options.body = aps.alert;
+    } else if (typeof aps.alert === 'object') {
+      title = aps.alert.title || 'StockHub Update';
+      options.body = aps.alert.body || 'You have a new notification';
     }
     
-    // Add other options
-    options.vibrate = [100, 50, 100];
-    options.requireInteraction = true;
-    options.tag = 'stockhub-notification';
-    options.actions = notificationData.actions || [];
+    // Set badge if provided
+    if (aps.badge) {
+      options.badge = '/favicon.ico';
+    }
     
-    log('Showing iOS notification:', { title, options });
+    // Merge additional data
+    if (notificationData.data) {
+      options.data = notificationData.data;
+    }
     
-    // Show the notification
-    event.waitUntil(
-      self.registration.showNotification(title, options)
-        .then(() => log('Notification shown successfully'))
-        .catch(error => log('Error showing notification:', error))
-    );
+    // Override with any direct notification properties
+    if (notificationData.icon) {
+      options.icon = notificationData.icon;
+    }
   }
-  // Standard format
+  // Handle standard web push format
   else {
-    const title = notificationData.title || 'StockHub Update';
+    log('Processing standard web push format');
     
-    const options = {
-      body: notificationData.body || 'You have a new notification',
-      icon: notificationData.icon || '/logo192.png',
-      badge: '/favicon.ico',
-      data: notificationData.data || { url: '/' },
-      vibrate: [100, 50, 100],
-      requireInteraction: true,
-      tag: 'stockhub-notification',
-      actions: notificationData.actions || []
-    };
+    if (notificationData.title) {
+      title = notificationData.title;
+    }
     
-    log('Showing standard notification:', { title, options });
+    if (notificationData.body) {
+      options.body = notificationData.body;
+    }
     
-    // Show the notification
-    event.waitUntil(
-      self.registration.showNotification(title, options)
-        .then(() => log('Notification shown successfully'))
-        .catch(error => log('Error showing notification:', error))
-    );
+    if (notificationData.icon) {
+      options.icon = notificationData.icon;
+    }
+    
+    if (notificationData.data) {
+      options.data = notificationData.data;
+    }
+    
+    if (notificationData.badge) {
+      options.badge = notificationData.badge;
+    }
+    
+    if (notificationData.actions) {
+      options.actions = notificationData.actions;
+    }
   }
+  
+  log('Final notification:', { title, options });
+  
+  // Show the notification
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+      .then(() => log('Notification shown successfully'))
+      .catch(error => {
+        log('Error showing notification:', error);
+        // Fallback: try with minimal options
+        return self.registration.showNotification(title, {
+          body: options.body,
+          icon: '/logo192.png'
+        });
+      })
+  );
 });
 
 // Notification click event
@@ -190,17 +214,32 @@ self.addEventListener('notificationclick', function(event) {
     }).then(function(clientList) {
       log('Found', clientList.length, 'clients');
       
-      // If we have a client, focus it
+      // Check if we have a client with the target URL or any client from the same origin
       for (let client of clientList) {
-        if (client.url === urlToOpen && 'focus' in client) {
-          log('Focusing existing client');
-          return client.focus();
+        const clientUrl = new URL(client.url);
+        const targetUrl = new URL(urlToOpen, self.location.origin);
+        
+        // Focus existing client if it's from the same origin
+        if (clientUrl.origin === targetUrl.origin && 'focus' in client) {
+          log('Focusing existing client and navigating to:', targetUrl.pathname);
+          return client.focus().then(() => {
+            // Try to navigate to the target URL
+            if (client.navigate) {
+              return client.navigate(targetUrl.href);
+            }
+          });
         }
       }
       
-      // If no client is found, open a new window
-      log('Opening new window');
-      return clients.openWindow(urlToOpen);
+      // If no suitable client is found, open a new window
+      log('Opening new window for:', urlToOpen);
+      const fullUrl = new URL(urlToOpen, self.location.origin).href;
+      return clients.openWindow(fullUrl);
+    }).catch(error => {
+      log('Error handling notification click:', error);
+      // Fallback: try to open a new window
+      const fullUrl = new URL(urlToOpen, self.location.origin).href;
+      return clients.openWindow(fullUrl);
     })
   );
 }); 

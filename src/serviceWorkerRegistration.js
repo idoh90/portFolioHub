@@ -43,7 +43,7 @@ export function register(config) {
     }
 
     window.addEventListener('load', () => {
-      // Add a version query parameter to force service worker update
+      // Use our custom service worker with push notification support
       const swUrl = `${process.env.PUBLIC_URL}/service-worker.js?v=${SERVICE_WORKER_VERSION}`;
       log('Service worker URL with version:', swUrl);
 

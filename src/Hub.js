@@ -1378,7 +1378,7 @@ const Hub = () => {
   }, []);
 
   return (
-    <div className="hub-container" key={refreshKey}>
+    <div className="hub-container pwa-container" key={refreshKey}>
       <div className="hub-padding-top" />
       <button className="logout-btn modern-button" onClick={handleLogout} title="Logout">⎋</button>
       {showNotificationButton && (

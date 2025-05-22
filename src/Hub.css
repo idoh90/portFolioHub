@@ -1,5 +1,6 @@
 .hub-container {
   min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height for modern browsers */
   background: #181818;
   color: #fff;
   display: flex;
@@ -7,7 +8,8 @@
 }
 
 .hub-padding-top {
-  height: 64px; /* Space for sticky header */
+  height: 20px; /* Reduced base padding */
+  /* Additional safe area padding will be added via CSS variables */
 }
 
 .hub-main {
@@ -686,6 +688,21 @@
   color: #fff;
 }
 
-.status-refresh-button:focus {
-  outline: none;
-} 
+.status-refresh-button:focus {  outline: none;}
+
+/* PWA safe area fixes */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .pwa-container .hub-padding-top {
+    height: calc(20px + env(safe-area-inset-top));
+  }
+  
+  .pwa-container .logout-btn {
+    top: calc(15px + env(safe-area-inset-top));
+    right: calc(15px + env(safe-area-inset-right));
+  }
+  
+  .pwa-container .notification-button-container {
+    top: calc(15px + env(safe-area-inset-top));
+    right: calc(60px + env(safe-area-inset-right));
+  }
+}

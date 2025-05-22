@@ -24,7 +24,7 @@ const NewPositionPage = () => {
   };
 
   return (
-    <div className="newposition-container">
+    <div className="newposition-container pwa-container">
       <h1 className="newposition-title">Add New Position</h1>
       <form className="newposition-form" onSubmit={handleSubmit}>
         <label>

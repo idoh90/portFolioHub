@@ -22,7 +22,7 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="login-container">
+    <div className="login-container pwa-container">
       <div className="login-box">
         <h1>Portfolio Hub</h1>
         <form onSubmit={handleSubmit}>

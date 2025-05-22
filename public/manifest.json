@@ -31,6 +31,7 @@
   "dir": "ltr",
   "lang": "en-US",
   "categories": ["finance", "business"],
+  "permissions": ["notifications"],
   "screenshots": [],
   "shortcuts": [
     {

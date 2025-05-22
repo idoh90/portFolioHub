@@ -168,7 +168,7 @@ const MyOptionsPage = () => {
   const canAdd = options.length < MAX_OPTIONS;
 
   return (
-    <div className="myoptions-container">
+    <div className="myoptions-container pwa-container">
       <button 
         className="back-btn modern-button" 
         onClick={() => navigate('/hub')} 
