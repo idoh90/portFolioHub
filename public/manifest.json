@@ -1,27 +1,49 @@
 {
   "id": "com.stockhub.app",
   "short_name": "StockHub",
-  "name": "Stock Portfolio Hub",
+  "name": "StockHub - Stock Trading Platform",
   "icons": [
     {
       "src": "favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
+      "sizes": "64x64",
       "type": "image/x-icon"
     },
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": "/index.html",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "theme_color": "#000000",
   "background_color": "#ffffff",
+  "description": "Track and manage your stock portfolio",
+  "dir": "ltr",
+  "lang": "en-US",
+  "categories": ["finance", "business"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "View Portfolio",
+      "url": "/mystocks",
+      "description": "View your stock portfolio"
+    },
+    {
+      "name": "Activity Feed",
+      "url": "/hub",
+      "description": "See recent trading activity"
+    }
+  ],
+  "related_applications": [],
   "prefer_related_applications": false
 }

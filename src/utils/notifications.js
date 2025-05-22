@@ -8,6 +8,9 @@ export const detectIOSVersion = () => {
   const userAgent = navigator.userAgent;
   const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
   
+  console.log('[iOS-DEBUG] User Agent:', userAgent);
+  console.log('[iOS-DEBUG] Is iOS device:', isIOS);
+  
   if (!isIOS) return { 
     isIOS: false, 
     version: null,
@@ -20,6 +23,8 @@ export const detectIOSVersion = () => {
                     /iPhone/.test(userAgent) ? 'iPhone' : 
                     /iPod/.test(userAgent) ? 'iPod' : null;
   
+  console.log('[iOS-DEBUG] Device type:', deviceType);
+  
   // Extract iOS version with more detailed parsing
   const match = userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
   if (match) {
@@ -27,13 +32,20 @@ export const detectIOSVersion = () => {
     const minorVersion = parseInt(match[2], 10);
     const patchVersion = match[3] ? parseInt(match[3], 10) : 0;
     
+    console.log('[iOS-DEBUG] iOS version details:', { major: majorVersion, minor: minorVersion, patch: patchVersion });
+    
     // Calculate full version number
     const version = majorVersion + (minorVersion / 10) + (patchVersion / 100);
     
     // Check for notification support
-    // iOS 16.4+ supports web push notifications
     const supportsNotifications = majorVersion > 16 || 
                                 (majorVersion === 16 && minorVersion >= 4);
+    
+    const isStandalone = window.navigator.standalone || 
+                        window.matchMedia('(display-mode: standalone)').matches;
+                        
+    console.log('[iOS-DEBUG] Supports notifications:', supportsNotifications);
+    console.log('[iOS-DEBUG] Is standalone mode:', isStandalone);
     
     return { 
       isIOS: true,
@@ -45,8 +57,7 @@ export const detectIOSVersion = () => {
       },
       deviceType,
       supportsNotifications,
-      isStandalone: window.navigator.standalone || 
-                    window.matchMedia('(display-mode: standalone)').matches
+      isStandalone
     };
   }
   
@@ -63,35 +74,41 @@ export const detectIOSVersion = () => {
 
 // Check if the app is running in standalone mode (added to home screen)
 export const isInStandaloneMode = () => {
-  return window.navigator.standalone || 
-         window.matchMedia('(display-mode: standalone)').matches;
+  const standalone = window.navigator.standalone || 
+                    window.matchMedia('(display-mode: standalone)').matches;
+  console.log('[iOS-DEBUG] Checking standalone mode:', standalone);
+  return standalone;
 };
 
 // Function to request notification permission
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
-    console.log('This browser does not support notifications');
+    console.log('[iOS-DEBUG] This browser does not support notifications');
     return false;
   }
   
   // Check iOS version if applicable
-  const { isIOS, supportsNotifications } = detectIOSVersion();
+  const { isIOS, supportsNotifications, isStandalone, versionDetails } = detectIOSVersion();
+  console.log('[iOS-DEBUG] Device info:', { isIOS, supportsNotifications, isStandalone, versionDetails });
+  
   if (isIOS && !supportsNotifications) {
-    console.log('iOS version does not support notifications');
+    console.log('[iOS-DEBUG] iOS version does not support notifications');
     return false;
   }
   
   // Check if app is in standalone mode for iOS
   if (isIOS && !isInStandaloneMode()) {
-    console.log('iOS app must be installed to home screen for notifications');
+    console.log('[iOS-DEBUG] iOS app must be installed to home screen for notifications');
     return false;
   }
   
   try {
+    console.log('[iOS-DEBUG] Requesting notification permission...');
     const permission = await Notification.requestPermission();
+    console.log('[iOS-DEBUG] Permission result:', permission);
     return permission === 'granted';
   } catch (error) {
-    console.error('Error requesting notification permission:', error);
+    console.error('[iOS-DEBUG] Error requesting notification permission:', error);
     return false;
   }
 };
@@ -138,42 +155,49 @@ export const getVapidPublicKey = async () => {
 // Subscribe to push notifications
 export const subscribeToPushNotifications = async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.log('Push notifications not supported');
+    console.log('[iOS-DEBUG] Push notifications not supported');
     return null;
   }
 
   // Check iOS-specific requirements
-  const { isIOS, supportsNotifications } = detectIOSVersion();
+  const { isIOS, supportsNotifications, isStandalone } = detectIOSVersion();
+  console.log('[iOS-DEBUG] Checking subscription requirements:', { isIOS, supportsNotifications, isStandalone });
+  
   if (isIOS) {
     if (!supportsNotifications) {
-      console.log('iOS version does not support web push notifications');
+      console.log('[iOS-DEBUG] iOS version does not support web push notifications');
       return null;
     }
     
-    if (!isInStandaloneMode()) {
-      console.log('iOS app must be installed to home screen for notifications');
+    if (!isStandalone) {
+      console.log('[iOS-DEBUG] iOS app must be installed to home screen for notifications');
       return null;
     }
   }
 
   try {
     // Get the service worker registration
+    console.log('[iOS-DEBUG] Getting service worker registration...');
     const registration = await navigator.serviceWorker.ready;
+    console.log('[iOS-DEBUG] Service worker state:', registration.active ? 'active' : 'not active');
     
     // Get VAPID public key
+    console.log('[iOS-DEBUG] Fetching VAPID public key...');
     const vapidPublicKey = await getVapidPublicKey();
     
     // Subscribe to push notifications
+    console.log('[iOS-DEBUG] Subscribing to push notifications...');
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
     });
     
-    console.log('Push notification subscription:', subscription);
+    console.log('[iOS-DEBUG] Push notification subscription:', subscription);
+    console.log('[iOS-DEBUG] Subscription endpoint:', subscription.endpoint);
     
     return subscription;
   } catch (error) {
-    console.error('Failed to subscribe to push notifications:', error);
+    console.error('[iOS-DEBUG] Failed to subscribe to push notifications:', error);
     return null;
   }
 };

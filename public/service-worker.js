@@ -1,6 +1,13 @@
 // This is the service worker with the Cache-first network strategy
 
-const CACHE = "stockhub-v2";
+const CACHE = 'stockhub-v1';
+
+// Debug mode
+const DEBUG = true;
+const log = (...args) => DEBUG && console.log('[SW-DEBUG]', ...args);
+
+log('Service Worker Loaded');
+
 const precacheFiles = [
   '/',
   '/index.html',
@@ -15,109 +22,80 @@ const precacheFiles = [
 ];
 
 // Install event
-self.addEventListener("install", function (event) {
-  console.log("[StockHub Service Worker] Install Event");
+self.addEventListener('install', function(event) {
+  log('Install Event');
   event.waitUntil(
-    caches.open(CACHE).then(function (cache) {
-      console.log("[StockHub Service Worker] Caching app shell and content");
-      return cache.addAll(precacheFiles);
+    caches.open(CACHE).then(function(cache) {
+      log('Caching app shell');
+      return cache.addAll([
+        '/',
+        '/index.html',
+        '/manifest.json',
+        '/logo192.png',
+        '/logo512.png',
+        '/favicon.ico',
+        '/static/js/main.js',
+        '/static/css/main.css'
+      ]);
     })
   );
+  // Force activation
+  self.skipWaiting();
 });
 
 // Activate event
-self.addEventListener("activate", function (event) {
-  console.log("[StockHub Service Worker] Activate Event");
+self.addEventListener('activate', function(event) {
+  log('Activate Event');
   event.waitUntil(
     caches.keys().then(function(keyList) {
       return Promise.all(keyList.map(function(key) {
         if (key !== CACHE) {
-          console.log("[StockHub Service Worker] Removing old cache", key);
+          log('Removing old cache', key);
           return caches.delete(key);
         }
       }));
+    }).then(() => {
+      log('Claiming clients');
+      return self.clients.claim();
     })
   );
-  // Claim the client to enable updates without refresh
-  return self.clients.claim();
 });
 
 // Fetch event
-self.addEventListener("fetch", function (event) {
-  console.log("[StockHub Service Worker] Fetch event", event.request.url);
-  
-  // Cache first strategy
+self.addEventListener('fetch', function(event) {
+  log('Fetch Event', event.request.url);
   event.respondWith(
-    caches.match(event.request).then(function (response) {
+    caches.match(event.request).then(function(response) {
       if (response) {
-        console.log("[StockHub Service Worker] Found in cache", event.request.url);
+        log('Serving from cache', event.request.url);
         return response;
       }
-      
-      // Not in cache, fetch from network
-      return fetch(event.request)
-        .then(function (networkResponse) {
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
-          }
-          
-          // Cache the fetched resource
-          let responseToCache = networkResponse.clone();
-          caches.open(CACHE).then(function (cache) {
-            cache.put(event.request, responseToCache);
-          });
-          
-          return networkResponse;
-        })
-        .catch(function (error) {
-          console.log("[StockHub Service Worker] Fetch failed:", error);
-          // Can return a custom offline page here
-          return caches.match('/index.html');
-        });
+      log('Serving from network', event.request.url);
+      return fetch(event.request);
     })
   );
 });
 
-// Push event handler
+// Push event
 self.addEventListener('push', function(event) {
-  console.log('[StockHub Service Worker] Push Received:', event);
-  console.log('[StockHub Service Worker] Push Data:', event.data ? event.data.text() : 'no data');
+  log('Push Event Received');
   
-  if (!event.data) {
-    console.log('[StockHub Service Worker] No data received');
-    return;
-  }
-  
-  let notificationData;
+  let notificationData = {};
   
   try {
-    // Parse the data sent from server
     notificationData = event.data.json();
-    console.log('[StockHub Service Worker] Push data parsed:', JSON.stringify(notificationData));
-  } catch (error) {
-    // If JSON parsing fails, try text
-    console.log('[StockHub Service Worker] JSON parse failed, trying text');
-    try {
-      const textData = event.data.text();
-      notificationData = JSON.parse(textData);
-      console.log('[StockHub Service Worker] Text data parsed:', JSON.stringify(notificationData));
-    } catch (textError) {
-      console.error('[StockHub Service Worker] Error parsing push data:', textError);
-      // Default data if parsing fails
-      notificationData = {
-        title: 'StockHub Update',
-        body: 'You have a new notification',
-        icon: '/logo192.png',
-        data: {
-          url: '/'
-        }
-      };
-    }
+    log('Push data:', notificationData);
+  } catch (e) {
+    log('Error parsing push data:', e);
+    notificationData = {
+      title: 'New Notification',
+      body: event.data ? event.data.text() : 'No payload'
+    };
   }
   
   // First check for iOS-specific format
   if (notificationData.aps) {
-    console.log('[StockHub Service Worker] Using iOS format');
+    log('Using iOS format');
     
     // Extract iOS format
     const aps = notificationData.aps;
@@ -153,11 +131,15 @@ self.addEventListener('push', function(event) {
     options.tag = 'stockhub-notification';
     options.actions = notificationData.actions || [];
     
-    console.log('[StockHub Service Worker] Showing iOS notification:', title, options);
+    log('Showing iOS notification:', { title, options });
     
-    // Show the notification - using simplified promise chain for iOS
-    event.waitUntil(self.registration.showNotification(title, options));
-  } 
+    // Show the notification
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+        .then(() => log('Notification shown successfully'))
+        .catch(error => log('Error showing notification:', error))
+    );
+  }
   // Standard format
   else {
     const title = notificationData.title || 'StockHub Update';
@@ -173,29 +155,52 @@ self.addEventListener('push', function(event) {
       actions: notificationData.actions || []
     };
     
-    console.log('[StockHub Service Worker] Showing standard notification:', title, options);
+    log('Showing standard notification:', { title, options });
     
-    // Show the notification - using simplified promise chain for iOS
-    event.waitUntil(self.registration.showNotification(title, options));
+    // Show the notification
+    event.waitUntil(
+      self.registration.showNotification(title, options)
+        .then(() => log('Notification shown successfully'))
+        .catch(error => log('Error showing notification:', error))
+    );
   }
 });
 
 // Notification click event
 self.addEventListener('notificationclick', function(event) {
-  console.log('[StockHub Service Worker] Notification click:', event);
+  log('Notification Click Event');
   
   // Close the notification
   event.notification.close();
   
   // Get the URL to open from notification data
   const urlToOpen = event.notification.data && event.notification.data.url ? event.notification.data.url : '/';
+  log('Opening URL:', urlToOpen);
   
   // Handle notification actions if clicked
   if (event.action) {
-    console.log('[StockHub Service Worker] Action clicked:', event.action);
-    // You can handle specific actions here
+    log('Action clicked:', event.action);
   }
   
-  // Simplified promise chain for iOS compatibility
-  event.waitUntil(clients.openWindow(urlToOpen));
+  // Open the window
+  event.waitUntil(
+    clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    }).then(function(clientList) {
+      log('Found', clientList.length, 'clients');
+      
+      // If we have a client, focus it
+      for (let client of clientList) {
+        if (client.url === urlToOpen && 'focus' in client) {
+          log('Focusing existing client');
+          return client.focus();
+        }
+      }
+      
+      // If no client is found, open a new window
+      log('Opening new window');
+      return clients.openWindow(urlToOpen);
+    })
+  );
 }); 
