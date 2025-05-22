@@ -118,6 +118,8 @@ export function urlBase64ToUint8Array(base64String) {
 
 // Fetch VAPID public key from server
 export const getVapidPublicKey = async () => {
+  console.log('getVapidPublicKey: Starting...');
+  
   try {
     // Determine API URL based on environment
     const API_URL = window.location.hostname === 'localhost'
@@ -125,17 +127,26 @@ export const getVapidPublicKey = async () => {
       : 'https://port-folio-server.vercel.app';
       
     const apiUrl = `${API_URL}/api/vapid-public-key`;
+    console.log('getVapidPublicKey: API URL:', apiUrl);
     
+    console.log('getVapidPublicKey: Fetching VAPID key from server...');
     const response = await fetch(apiUrl);
     
+    console.log('getVapidPublicKey: Response status:', response.status);
+    console.log('getVapidPublicKey: Response ok:', response.ok);
+    
     if (!response.ok) {
-      throw new Error('Failed to fetch VAPID key');
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
     const data = await response.json();
+    console.log('getVapidPublicKey: Server response:', data);
+    console.log('getVapidPublicKey: Public key length:', data.publicKey ? data.publicKey.length : 'null');
+    
     return data.publicKey;
   } catch (error) {
-    console.error('Error fetching VAPID public key:', error);
+    console.error('getVapidPublicKey: Error fetching VAPID public key:', error);
+    console.error('getVapidPublicKey: Using fallback key');
     // Return fallback key if server request fails
     return FALLBACK_PUBLIC_VAPID_KEY;
   }
@@ -143,49 +154,91 @@ export const getVapidPublicKey = async () => {
 
 // Subscribe to push notifications
 export const subscribeToPushNotifications = async () => {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return null;
-  }
-
-  // Check iOS-specific requirements
-  const { isIOS, supportsNotifications, isStandalone } = detectIOSVersion();
+  console.log('subscribeToPushNotifications: Starting...');
   
-  if (isIOS) {
-    if (!supportsNotifications) {
-      return null;
-    }
-    
-    if (!isStandalone) {
-      return null;
-    }
-  }
-
   try {
+    console.log('subscribeToPushNotifications: Checking browser support...');
+    console.log('subscribeToPushNotifications: serviceWorker in navigator:', 'serviceWorker' in navigator);
+    console.log('subscribeToPushNotifications: PushManager in window:', 'PushManager' in window);
+    
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.error('subscribeToPushNotifications: Service Worker or PushManager not supported');
+      return null;
+    }
+
+    console.log('subscribeToPushNotifications: Browser support OK, checking device...');
+    
+    // Check iOS-specific requirements
+    const { isIOS, supportsNotifications, isStandalone } = detectIOSVersion();
+    console.log('subscribeToPushNotifications: Device info:', { isIOS, supportsNotifications, isStandalone });
+    
+    if (isIOS) {
+      console.log('subscribeToPushNotifications: iOS device detected, checking requirements...');
+      
+      if (!supportsNotifications) {
+        console.error('subscribeToPushNotifications: iOS does not support notifications');
+        return null;
+      }
+      
+      if (!isStandalone) {
+        console.error('subscribeToPushNotifications: iOS app not in standalone mode');
+        return null;
+      }
+      
+      console.log('subscribeToPushNotifications: iOS requirements passed');
+    } else {
+      console.log('subscribeToPushNotifications: Non-iOS device, proceeding...');
+    }
+
+    console.log('subscribeToPushNotifications: Waiting for service worker...');
     // Get the service worker registration
     const registration = await navigator.serviceWorker.ready;
+    console.log('subscribeToPushNotifications: Service worker ready:', registration);
     
+    console.log('subscribeToPushNotifications: Getting VAPID public key...');
     // Get VAPID public key
     const vapidPublicKey = await getVapidPublicKey();
+    console.log('subscribeToPushNotifications: VAPID key received:', vapidPublicKey ? 'Yes' : 'No');
     
+    if (!vapidPublicKey) {
+      throw new Error('Failed to get VAPID public key');
+    }
+    
+    console.log('subscribeToPushNotifications: Converting VAPID key...');
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+    console.log('subscribeToPushNotifications: VAPID key converted, length:', applicationServerKey.length);
+    
+    console.log('subscribeToPushNotifications: Subscribing to push manager...');
     // Subscribe to push notifications
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+      applicationServerKey: applicationServerKey
     });
+    
+    console.log('subscribeToPushNotifications: Subscription created successfully:', subscription);
+    console.log('subscribeToPushNotifications: Endpoint:', subscription.endpoint);
     
     return subscription;
   } catch (error) {
-    console.error('Failed to subscribe to push notifications:', error);
+    console.error('subscribeToPushNotifications: Failed to subscribe:', error);
+    console.error('subscribeToPushNotifications: Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     return null;
   }
 };
 
 // Send subscription to server
 export const sendSubscriptionToServer = async (subscription) => {
+  console.log('sendSubscriptionToServer: Starting...');
+  
   try {
     // Get current user from local storage or auth context
     const currentUser = localStorage.getItem('currentUser');
     const userId = currentUser || 'anonymous';
+    console.log('sendSubscriptionToServer: User ID:', userId);
     
     // Determine API URL based on environment
     const API_URL = window.location.hostname === 'localhost'
@@ -193,7 +246,9 @@ export const sendSubscriptionToServer = async (subscription) => {
       : 'https://port-folio-server.vercel.app';
       
     const apiUrl = `${API_URL}/api/push-subscriptions`;
+    console.log('sendSubscriptionToServer: API URL:', apiUrl);
     
+    console.log('sendSubscriptionToServer: Sending request...');
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -205,15 +260,26 @@ export const sendSubscriptionToServer = async (subscription) => {
       }),
     });
     
+    console.log('sendSubscriptionToServer: Response status:', response.status);
+    console.log('sendSubscriptionToServer: Response ok:', response.ok);
+    
     if (!response.ok) {
       const error = await response.text();
-      console.error('Failed to save subscription:', response.status, error);
-      throw new Error('Failed to save subscription on server');
+      console.error('sendSubscriptionToServer: Server error:', response.status, error);
+      throw new Error(`Server responded with ${response.status}: ${error}`);
     }
+    
+    const result = await response.json();
+    console.log('sendSubscriptionToServer: Server response:', result);
     
     return true;
   } catch (error) {
-    console.error('Error saving subscription:', error);
+    console.error('sendSubscriptionToServer: Error saving subscription:', error);
+    console.error('sendSubscriptionToServer: Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
     return false;
   }
 };

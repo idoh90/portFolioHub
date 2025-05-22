@@ -56,7 +56,34 @@ const NotificationButton = () => {
 
   // Check permission state on mount
   useEffect(() => {
+    console.log('NotificationButton: useEffect starting...');
+    
+    // Check service worker status
+    if ('serviceWorker' in navigator) {
+      console.log('NotificationButton: Service worker supported');
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        console.log('NotificationButton: Service worker registrations:', registrations.length);
+        registrations.forEach((registration, index) => {
+          console.log(`NotificationButton: Registration ${index}:`, {
+            scope: registration.scope,
+            active: !!registration.active,
+            installing: !!registration.installing,
+            waiting: !!registration.waiting
+          });
+        });
+      });
+      
+      navigator.serviceWorker.ready.then(registration => {
+        console.log('NotificationButton: Service worker ready:', registration);
+      }).catch(error => {
+        console.error('NotificationButton: Service worker ready error:', error);
+      });
+    } else {
+      console.error('NotificationButton: Service worker not supported');
+    }
+    
     if ('Notification' in window) {
+      console.log('NotificationButton: Notification API supported, permission:', Notification.permission);
       setPermissionState(Notification.permission);
       
       // Check if already subscribed
@@ -64,18 +91,25 @@ const NotificationButton = () => {
       
       // Check iOS specific information
       const iosData = detectIOSVersion();
+      console.log('NotificationButton: iOS data:', iosData);
       setIosInfo(iosData);
       setIsStandalone(isInStandaloneMode());
       
       // If permission is already granted but not subscribed, automatically subscribe
       if (Notification.permission === 'granted') {
+        console.log('NotificationButton: Permission already granted, checking subscription...');
         (async () => {
           const isAlreadySubscribed = await checkSubscriptionStatus();
           if (!isAlreadySubscribed) {
+            console.log('NotificationButton: Not subscribed, auto-subscribing...');
             await handleSubscribe();
+          } else {
+            console.log('NotificationButton: Already subscribed');
           }
         })();
       }
+    } else {
+      console.error('NotificationButton: Notification API not supported');
     }
   }, []);
 
