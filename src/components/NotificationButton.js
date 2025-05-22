@@ -63,6 +63,20 @@ const NotificationButton = () => {
       console.log('NotificationButton: Service worker supported');
       navigator.serviceWorker.getRegistrations().then(registrations => {
         console.log('NotificationButton: Service worker registrations:', registrations.length);
+        
+        if (registrations.length === 0) {
+          console.warn('NotificationButton: No service worker registrations found! Attempting manual registration...');
+          
+          // Attempt manual registration
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(registration => {
+              console.log('NotificationButton: Manual service worker registration successful:', registration);
+            })
+            .catch(error => {
+              console.error('NotificationButton: Manual service worker registration failed:', error);
+            });
+        }
+        
         registrations.forEach((registration, index) => {
           console.log(`NotificationButton: Registration ${index}:`, {
             scope: registration.scope,

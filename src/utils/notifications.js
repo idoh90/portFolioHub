@@ -191,8 +191,35 @@ export const subscribeToPushNotifications = async () => {
     }
 
     console.log('subscribeToPushNotifications: Waiting for service worker...');
-    // Get the service worker registration
-    const registration = await navigator.serviceWorker.ready;
+    
+    // Check service worker registration status first
+    console.log('subscribeToPushNotifications: Checking service worker registrations...');
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    console.log('subscribeToPushNotifications: Found registrations:', registrations.length);
+    
+    if (registrations.length === 0) {
+      console.error('subscribeToPushNotifications: No service worker registrations found!');
+      throw new Error('No service worker registered');
+    }
+    
+    registrations.forEach((reg, index) => {
+      console.log(`subscribeToPushNotifications: Registration ${index}:`, {
+        scope: reg.scope,
+        active: !!reg.active,
+        installing: !!reg.installing,
+        waiting: !!reg.waiting,
+        updatefound: !!reg.updatefound
+      });
+    });
+    
+    // Get the service worker registration with timeout
+    console.log('subscribeToPushNotifications: Waiting for service worker ready (with timeout)...');
+    const registration = await Promise.race([
+      navigator.serviceWorker.ready,
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Service worker ready timeout')), 10000)
+      )
+    ]);
     console.log('subscribeToPushNotifications: Service worker ready:', registration);
     
     console.log('subscribeToPushNotifications: Getting VAPID public key...');

@@ -73,12 +73,28 @@ function registerValidSW(swUrl, config) {
     .register(swUrl)
     .then((registration) => {
       log('Service worker registered successfully:', registration);
+      log('Service worker scope:', registration.scope);
+      log('Service worker active:', !!registration.active);
+      log('Service worker installing:', !!registration.installing);
+      log('Service worker waiting:', !!registration.waiting);
       
       // iOS requires special handling for service worker updates
       if (isIOS) {
         log('iOS device detected - performing special update handling');
         // Force update for iOS devices
         registration.update();
+      }
+      
+      // Check if service worker is immediately ready
+      if (registration.active) {
+        log('Service worker is already active');
+      } else if (registration.installing) {
+        log('Service worker is installing...');
+        registration.installing.addEventListener('statechange', (e) => {
+          log('Service worker state changed:', e.target.state);
+        });
+      } else if (registration.waiting) {
+        log('Service worker is waiting...');
       }
       
       registration.onupdatefound = () => {
@@ -90,6 +106,8 @@ function registerValidSW(swUrl, config) {
         log('New service worker is installing...');
         
         installingWorker.onstatechange = () => {
+          log('Installing worker state changed:', installingWorker.state);
+          
           if (installingWorker.state === 'installed') {
             if (navigator.serviceWorker.controller) {
               // At this point, the updated precached content has been fetched,
@@ -139,6 +157,11 @@ function registerValidSW(swUrl, config) {
     })
     .catch((error) => {
       console.error('Error during service worker registration:', error);
+      console.error('Service worker registration failed with details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
     });
 }
 
