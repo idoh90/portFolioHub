@@ -241,6 +241,14 @@ const notificationExamples = {
   }
 };
 
+/**
+ * Get the current number of subscriptions
+ * @returns {number} The number of active subscriptions
+ */
+const getSubscriptionsCount = () => {
+  return subscriptions.size;
+};
+
 module.exports = {
   saveSubscription,
   removeSubscription,
@@ -248,7 +256,7 @@ module.exports = {
   sendBroadcast,
   notificationExamples,
   vapidPublicKey: vapidKeys.publicKey,
-  getSubscriptionsCount: () => subscriptions.size,
+  getSubscriptionsCount,
   // Add a method to get all subscriptions for testing
   listSubscriptions: () => subscriptions
 }; 

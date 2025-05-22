@@ -83,25 +83,36 @@ self.addEventListener('push', function(event) {
   console.log('[StockHub Service Worker] Push Received:', event);
   console.log('[StockHub Service Worker] Push Data:', event.data ? event.data.text() : 'no data');
   
-  let notificationData = {};
+  if (!event.data) {
+    console.log('[StockHub Service Worker] No data received');
+    return;
+  }
+  
+  let notificationData;
   
   try {
     // Parse the data sent from server
-    if (event.data) {
-      notificationData = event.data.json();
-      console.log('[StockHub Service Worker] Push data parsed:', JSON.stringify(notificationData));
-    }
+    notificationData = event.data.json();
+    console.log('[StockHub Service Worker] Push data parsed:', JSON.stringify(notificationData));
   } catch (error) {
-    console.error('[StockHub Service Worker] Error parsing push data:', error);
-    // Default data if parsing fails
-    notificationData = {
-      title: 'StockHub Update',
-      body: 'You have a new notification',
-      icon: '/logo192.png',
-      data: {
-        url: '/'
-      }
-    };
+    // If JSON parsing fails, try text
+    console.log('[StockHub Service Worker] JSON parse failed, trying text');
+    try {
+      const textData = event.data.text();
+      notificationData = JSON.parse(textData);
+      console.log('[StockHub Service Worker] Text data parsed:', JSON.stringify(notificationData));
+    } catch (textError) {
+      console.error('[StockHub Service Worker] Error parsing push data:', textError);
+      // Default data if parsing fails
+      notificationData = {
+        title: 'StockHub Update',
+        body: 'You have a new notification',
+        icon: '/logo192.png',
+        data: {
+          url: '/'
+        }
+      };
+    }
   }
   
   // First check for iOS-specific format
@@ -144,16 +155,8 @@ self.addEventListener('push', function(event) {
     
     console.log('[StockHub Service Worker] Showing iOS notification:', title, options);
     
-    // Show the notification
-    event.waitUntil(
-      self.registration.showNotification(title, options)
-        .then(() => {
-          console.log('[StockHub Service Worker] iOS notification displayed successfully');
-        })
-        .catch(err => {
-          console.error('[StockHub Service Worker] Error showing iOS notification:', err);
-        })
-    );
+    // Show the notification - using simplified promise chain for iOS
+    event.waitUntil(self.registration.showNotification(title, options));
   } 
   // Standard format
   else {
@@ -172,16 +175,8 @@ self.addEventListener('push', function(event) {
     
     console.log('[StockHub Service Worker] Showing standard notification:', title, options);
     
-    // Show the notification
-    event.waitUntil(
-      self.registration.showNotification(title, options)
-        .then(() => {
-          console.log('[StockHub Service Worker] Standard notification displayed successfully');
-        })
-        .catch(err => {
-          console.error('[StockHub Service Worker] Error showing standard notification:', err);
-        })
-    );
+    // Show the notification - using simplified promise chain for iOS
+    event.waitUntil(self.registration.showNotification(title, options));
   }
 });
 
@@ -192,8 +187,8 @@ self.addEventListener('notificationclick', function(event) {
   // Close the notification
   event.notification.close();
   
-  // Handle notification click - usually by opening a specific URL
-  const urlToOpen = event.notification.data.url || '/';
+  // Get the URL to open from notification data
+  const urlToOpen = event.notification.data && event.notification.data.url ? event.notification.data.url : '/';
   
   // Handle notification actions if clicked
   if (event.action) {
@@ -201,25 +196,6 @@ self.addEventListener('notificationclick', function(event) {
     // You can handle specific actions here
   }
   
-  // Open the app or specific page
-  event.waitUntil(
-    clients.matchAll({
-      type: 'window',
-      includeUncontrolled: true
-    })
-    .then(function(clientList) {
-      // Check if there's already a window open
-      for (let i = 0; i < clientList.length; i++) {
-        const client = clientList[i];
-        if (client.url === urlToOpen && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      
-      // If no window is open, open a new one
-      if (clients.openWindow) {
-        return clients.openWindow(urlToOpen);
-      }
-    })
-  );
+  // Simplified promise chain for iOS compatibility
+  event.waitUntil(clients.openWindow(urlToOpen));
 }); 

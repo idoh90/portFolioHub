@@ -1,4 +1,5 @@
 {
+  "id": "com.stockhub.app",
   "short_name": "StockHub",
   "name": "Stock Portfolio Hub",
   "icons": [
@@ -18,8 +19,9 @@
       "sizes": "512x512"
     }
   ],
-  "start_url": ".",
+  "start_url": "/index.html",
   "display": "standalone",
   "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "background_color": "#ffffff",
+  "prefer_related_applications": false
 }

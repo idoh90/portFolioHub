@@ -1,12 +1,58 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { NotificationContext } from '../NotificationContext';
-import { requestNotificationPermission, subscribeToPushNotifications, sendSubscriptionToServer } from '../utils/notifications';
+import { 
+  requestNotificationPermission, 
+  subscribeToPushNotifications, 
+  sendSubscriptionToServer,
+  detectIOSVersion,
+  isInStandaloneMode
+} from '../utils/notifications';
+
+// iOS install banner component
+const IOSInstallBanner = () => {
+  return (
+    <div style={{
+      backgroundColor: '#f8d7da',
+      color: '#721c24',
+      padding: '10px',
+      borderRadius: '5px',
+      marginBottom: '15px',
+      fontSize: '14px'
+    }}>
+      <strong>iOS Users:</strong> To receive notifications, please add this app to your home screen.
+      <div style={{ marginTop: '5px' }}>
+        Tap the share icon <span style={{ fontSize: '18px' }}>⎙</span> and select "Add to Home Screen"
+      </div>
+    </div>
+  );
+};
+
+// iOS update banner component
+const IOSUpdateBanner = () => {
+  return (
+    <div style={{
+      backgroundColor: '#fff3cd',
+      color: '#856404',
+      padding: '10px',
+      borderRadius: '5px',
+      marginBottom: '15px',
+      fontSize: '14px'
+    }}>
+      <strong>Update Required:</strong> Your iOS version doesn't support web notifications.
+      <div style={{ marginTop: '5px' }}>
+        Please update to iOS 16.4 or later to receive notifications.
+      </div>
+    </div>
+  );
+};
 
 const NotificationButton = () => {
   const { notificationsEnabled, toggleNotifications } = useContext(NotificationContext);
   const [permissionState, setPermissionState] = useState('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [iosInfo, setIosInfo] = useState({ isIOS: false, supportsNotifications: false });
+  const [isStandalone, setIsStandalone] = useState(false);
 
   // Check permission state on mount
   useEffect(() => {
@@ -15,6 +61,11 @@ const NotificationButton = () => {
       
       // Check if already subscribed
       checkSubscriptionStatus();
+      
+      // Check iOS specific information
+      const iosData = detectIOSVersion();
+      setIosInfo(iosData);
+      setIsStandalone(isInStandaloneMode());
     }
   }, []);
 
@@ -35,6 +86,19 @@ const NotificationButton = () => {
   };
 
   const handleRequestPermission = async () => {
+    // For iOS, check if it supports notifications and is installed to home screen
+    if (iosInfo.isIOS) {
+      if (!iosInfo.supportsNotifications) {
+        alert('Your iOS version does not support web push notifications. Please update to iOS 16.4 or later.');
+        return;
+      }
+      
+      if (!isStandalone) {
+        alert('Please add this app to your home screen to enable notifications.');
+        return;
+      }
+    }
+    
     setIsLoading(true);
     
     try {
@@ -122,6 +186,21 @@ const NotificationButton = () => {
     }
   };
 
+  // Render iOS banners when needed
+  const renderIOSBanners = () => {
+    if (!iosInfo.isIOS) return null;
+    
+    if (!iosInfo.supportsNotifications) {
+      return <IOSUpdateBanner />;
+    }
+    
+    if (!isStandalone) {
+      return <IOSInstallBanner />;
+    }
+    
+    return null;
+  };
+
   // If notifications are not supported
   if (!('Notification' in window)) {
     return null;
@@ -130,13 +209,16 @@ const NotificationButton = () => {
   // If permission granted but needs to toggle enabled/disabled state
   if (isSubscribed) {
     return (
-      <button 
-        onClick={handleToggleNotifications}
-        disabled={isLoading}
-        className={`notification-button ${notificationsEnabled ? 'unsubscribe' : 'muted'}`}
-      >
-        {isLoading ? 'Processing...' : notificationsEnabled ? 'Mute Notifications' : 'Unmute Notifications'}
-      </button>
+      <div>
+        {renderIOSBanners()}
+        <button 
+          onClick={handleToggleNotifications}
+          disabled={isLoading}
+          className={`notification-button ${notificationsEnabled ? 'unsubscribe' : 'muted'}`}
+        >
+          {isLoading ? 'Processing...' : notificationsEnabled ? 'Mute Notifications' : 'Unmute Notifications'}
+        </button>
+      </div>
     );
   }
 
@@ -151,13 +233,16 @@ const NotificationButton = () => {
 
   // If permission not granted or default
   return (
-    <button 
-      onClick={handleRequestPermission}
-      disabled={isLoading}
-      className="notification-button subscribe"
-    >
-      {isLoading ? 'Processing...' : 'Enable Notifications'}
-    </button>
+    <div>
+      {renderIOSBanners()}
+      <button 
+        onClick={handleRequestPermission}
+        disabled={isLoading}
+        className="notification-button subscribe"
+      >
+        {isLoading ? 'Processing...' : 'Enable Notifications'}
+      </button>
+    </div>
   );
 };
 

@@ -3,10 +3,51 @@
 // This is a fallback in case the server request fails
 const FALLBACK_PUBLIC_VAPID_KEY = 'BMqyrecWOLqb2v-2s2wtuGLIpIdBv4UShX5e1RLQ67H4RL40hCbkojaCNqXkeBuv3D2ag6HyTNwF7DJaFqtqhpU';
 
+// Detect iOS version
+export const detectIOSVersion = () => {
+  const userAgent = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+  
+  if (!isIOS) return { isIOS: false, version: null };
+  
+  // Extract iOS version
+  const match = userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
+  if (match) {
+    const majorVersion = parseInt(match[1], 10);
+    const minorVersion = parseInt(match[2], 10);
+    return { 
+      isIOS: true, 
+      version: majorVersion + (minorVersion / 10),
+      supportsNotifications: majorVersion >= 16 && minorVersion >= 4
+    };
+  }
+  
+  return { isIOS: true, version: null, supportsNotifications: false };
+};
+
+// Check if the app is running in standalone mode (added to home screen)
+export const isInStandaloneMode = () => {
+  return window.navigator.standalone || 
+         window.matchMedia('(display-mode: standalone)').matches;
+};
+
 // Function to request notification permission
 export const requestNotificationPermission = async () => {
   if (!('Notification' in window)) {
     console.log('This browser does not support notifications');
+    return false;
+  }
+  
+  // Check iOS version if applicable
+  const { isIOS, supportsNotifications } = detectIOSVersion();
+  if (isIOS && !supportsNotifications) {
+    console.log('iOS version does not support notifications');
+    return false;
+  }
+  
+  // Check if app is in standalone mode for iOS
+  if (isIOS && !isInStandaloneMode()) {
+    console.log('iOS app must be installed to home screen for notifications');
     return false;
   }
   
@@ -63,6 +104,20 @@ export const subscribeToPushNotifications = async () => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.log('Push notifications not supported');
     return null;
+  }
+
+  // Check iOS-specific requirements
+  const { isIOS, supportsNotifications } = detectIOSVersion();
+  if (isIOS) {
+    if (!supportsNotifications) {
+      console.log('iOS version does not support web push notifications');
+      return null;
+    }
+    
+    if (!isInStandaloneMode()) {
+      console.log('iOS app must be installed to home screen for notifications');
+      return null;
+    }
   }
 
   try {
