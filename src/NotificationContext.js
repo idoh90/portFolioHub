@@ -5,6 +5,13 @@ import { ref, set, get } from 'firebase/database';
 
 export const NotificationContext = createContext(null);
 
+// Determine API URL based on environment
+// In production, this will be your Vercel deployment URL
+// In development, this will be your local server
+const API_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://port-folio-2e8ok728p-idoh90s-projects.vercel.app'
+  : 'http://localhost:5000';
+
 export function NotificationProvider({ children }) {
   const { user } = useContext(AuthContext);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
@@ -80,10 +87,8 @@ export function NotificationProvider({ children }) {
       
       console.log("Notification payload:", notification);
       
-      // Determine API URL based on environment
-      const isDevelopment = process.env.NODE_ENV === 'development';
-      const API_BASE_URL = isDevelopment ? 'http://localhost:5000' : ''; // Adjust port if your server runs elsewhere
-      const apiUrl = `${API_BASE_URL}/api/broadcast-notification`;
+      // Use the API URL from our constant
+      const apiUrl = `${API_URL}/api/broadcast-notification`;
       
       console.log(`Sending notification to: ${apiUrl}`);
         

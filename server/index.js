@@ -7,7 +7,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins for testing, adjust for production
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(bodyParser.json());
 
 // Health check endpoint
@@ -180,8 +184,13 @@ app.get('/api/push-subscriptions/count', (req, res) => {
   res.json({ count });
 });
 
-// Start the server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`VAPID public key: ${pushNotifications.vapidPublicKey}`);
-}); 
+// For local development only
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`VAPID public key: ${pushNotifications.vapidPublicKey}`);
+  });
+}
+
+// Export the app for Vercel
+module.exports = app; 

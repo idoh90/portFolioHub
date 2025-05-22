@@ -132,11 +132,14 @@ export function urlBase64ToUint8Array(base64String) {
 // Fetch VAPID public key from server
 export const getVapidPublicKey = async () => {
   try {
-    // In development, the server might be on a different port
-    const apiUrl = process.env.NODE_ENV === 'production' 
-      ? '/api/vapid-public-key'
-      : 'http://localhost:5000/api/vapid-public-key';
+    // Determine API URL based on environment
+    const API_URL = process.env.NODE_ENV === 'production' 
+      ? 'https://your-vercel-app.vercel.app' // REPLACE WITH YOUR ACTUAL VERCEL URL AFTER DEPLOYMENT
+      : 'http://localhost:5000';
       
+    const apiUrl = `${API_URL}/api/vapid-public-key`;
+    console.log(`[iOS-DEBUG] Fetching VAPID key from: ${apiUrl}`);
+    
     const response = await fetch(apiUrl);
     
     if (!response.ok) {
@@ -209,13 +212,16 @@ export const sendSubscriptionToServer = async (subscription) => {
     const currentUser = localStorage.getItem('currentUser');
     const userId = currentUser || 'anonymous';
     
-    console.log('Sending subscription to server for user:', userId);
+    console.log('[iOS-DEBUG] Sending subscription to server for user:', userId);
     
-    // Replace with your actual API endpoint
-    const apiUrl = process.env.NODE_ENV === 'production'
-      ? '/api/push-subscriptions'
-      : 'http://localhost:5000/api/push-subscriptions';
+    // Determine API URL based on environment
+    const API_URL = process.env.NODE_ENV === 'production' 
+      ? 'https://your-vercel-app.vercel.app' // REPLACE WITH YOUR ACTUAL VERCEL URL AFTER DEPLOYMENT
+      : 'http://localhost:5000';
       
+    const apiUrl = `${API_URL}/api/push-subscriptions`;
+    console.log('[iOS-DEBUG] Sending to API URL:', apiUrl);
+    
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -228,13 +234,15 @@ export const sendSubscriptionToServer = async (subscription) => {
     });
     
     if (!response.ok) {
+      const error = await response.text();
+      console.error('[iOS-DEBUG] Failed to save subscription:', response.status, error);
       throw new Error('Failed to save subscription on server');
     }
     
-    console.log('Subscription saved on server');
+    console.log('[iOS-DEBUG] Subscription saved successfully');
     return true;
   } catch (error) {
-    console.error('Error saving subscription:', error);
+    console.error('[iOS-DEBUG] Error saving subscription:', error);
     return false;
   }
 };
