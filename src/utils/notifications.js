@@ -8,21 +8,57 @@ export const detectIOSVersion = () => {
   const userAgent = navigator.userAgent;
   const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
   
-  if (!isIOS) return { isIOS: false, version: null };
+  if (!isIOS) return { 
+    isIOS: false, 
+    version: null,
+    deviceType: null,
+    supportsNotifications: false
+  };
   
-  // Extract iOS version
+  // Determine device type
+  const deviceType = /iPad/.test(userAgent) ? 'iPad' : 
+                    /iPhone/.test(userAgent) ? 'iPhone' : 
+                    /iPod/.test(userAgent) ? 'iPod' : null;
+  
+  // Extract iOS version with more detailed parsing
   const match = userAgent.match(/OS (\d+)_(\d+)_?(\d+)?/);
   if (match) {
     const majorVersion = parseInt(match[1], 10);
     const minorVersion = parseInt(match[2], 10);
+    const patchVersion = match[3] ? parseInt(match[3], 10) : 0;
+    
+    // Calculate full version number
+    const version = majorVersion + (minorVersion / 10) + (patchVersion / 100);
+    
+    // Check for notification support
+    // iOS 16.4+ supports web push notifications
+    const supportsNotifications = majorVersion > 16 || 
+                                (majorVersion === 16 && minorVersion >= 4);
+    
     return { 
-      isIOS: true, 
-      version: majorVersion + (minorVersion / 10),
-      supportsNotifications: majorVersion >= 16 && minorVersion >= 4
+      isIOS: true,
+      version,
+      versionDetails: {
+        major: majorVersion,
+        minor: minorVersion,
+        patch: patchVersion
+      },
+      deviceType,
+      supportsNotifications,
+      isStandalone: window.navigator.standalone || 
+                    window.matchMedia('(display-mode: standalone)').matches
     };
   }
   
-  return { isIOS: true, version: null, supportsNotifications: false };
+  return { 
+    isIOS: true, 
+    version: null,
+    versionDetails: null,
+    deviceType,
+    supportsNotifications: false,
+    isStandalone: window.navigator.standalone || 
+                  window.matchMedia('(display-mode: standalone)').matches
+  };
 };
 
 // Check if the app is running in standalone mode (added to home screen)

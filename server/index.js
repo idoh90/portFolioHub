@@ -10,6 +10,11 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(bodyParser.json());
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', subscriptions: pushNotifications.getSubscriptionsCount() });
+});
+
 // Routes
 app.post('/api/push-subscriptions', (req, res) => {
   try {
@@ -77,92 +82,88 @@ app.delete('/api/push-subscriptions', (req, res) => {
   }
 });
 
-// Test route to send a notification to a specific user
-app.post('/api/send-notification', (req, res) => {
+// Send test notification
+app.post('/api/test-notification', async (req, res) => {
   try {
-    const { userId, notification } = req.body;
+    const { userId } = req.body;
     
-    if (!userId || !notification) {
-      console.error('Missing userId or notification data:', { userId, notification });
+    if (!userId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Missing userId or notification data' 
+        message: 'Missing userId' 
       });
     }
     
-    console.log('[DEBUG] Sending notification to user:', userId);
-    console.log('[DEBUG] Notification payload:', JSON.stringify(notification, null, 2));
+    // Send a test notification
+    const testNotification = {
+      title: 'Test Notification',
+      body: 'This is a test notification from StockHub',
+      icon: '/logo192.png',
+      badge: 1,
+      data: { url: '/hub' },
+      aps: {
+        alert: {
+          title: 'Test Notification',
+          body: 'This is a test notification from StockHub'
+        },
+        badge: 1,
+        'content-available': 1,
+        sound: 'default'
+      }
+    };
     
-    // Send notification asynchronously
-    pushNotifications.sendNotification(userId, notification)
-      .then(success => {
-        console.log(`Notification to ${userId} ${success ? 'sent' : 'failed'}`);
-        
-        // If failed, we should return an error to the client
-        if (!success) {
-          // This won't actually reach the client because we already responded
-          console.error(`Failed to send notification to ${userId}`);
-        }
-      })
-      .catch(error => {
-        console.error('Error in notification sending:', error);
+    const success = await pushNotifications.sendNotification(userId, testNotification);
+    
+    if (success) {
+      return res.json({ 
+        success: true, 
+        message: 'Test notification sent successfully' 
       });
-    
-    // Respond immediately since notification sending is async
-    return res.status(202).json({ 
-      success: true, 
-      message: 'Notification queued for delivery' 
-    });
+    } else {
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Failed to send test notification' 
+      });
+    }
   } catch (error) {
-    console.error('Error queuing notification:', error);
+    console.error('Error sending test notification:', error);
     return res.status(500).json({ 
       success: false, 
-      message: 'Internal server error: ' + error.message
+      message: 'Internal server error' 
     });
   }
 });
 
-// Broadcast a notification to all subscribed users
+// Broadcast notification to all users
 app.post('/api/broadcast-notification', (req, res) => {
   try {
     const { notification } = req.body;
     
     if (!notification) {
-      console.error('Missing notification data in broadcast request');
       return res.status(400).json({ 
         success: false, 
         message: 'Missing notification data' 
       });
     }
     
-    console.log('[DEBUG] Received broadcast notification request:', JSON.stringify(notification, null, 2));
-    console.log('[DEBUG] Current subscriptions:', pushNotifications.getSubscriptionsCount());
-    
-    // Send notification asynchronously to all users
+    // Send notification asynchronously
     pushNotifications.sendBroadcast(notification)
       .then(results => {
-        console.log('[DEBUG] Broadcast notification results:', results);
-        
-        // Check if any broadcasts succeeded
-        const succeeded = Object.values(results).some(result => result === 'success');
-        if (!succeeded && Object.keys(results).length > 0) {
-          console.error('[DEBUG] All broadcast notifications failed:', results);
-        }
+        console.log('Broadcast results:', results);
       })
       .catch(error => {
-        console.error('[DEBUG] Error sending broadcast notification:', error);
+        console.error('Error in broadcast:', error);
       });
     
-    // Respond immediately since broadcasting is async
     return res.status(202).json({ 
       success: true, 
       message: 'Notification queued for broadcast' 
     });
   } catch (error) {
-    console.error('[DEBUG] Error queuing broadcast notification:', error);
+    console.error('Error in broadcast endpoint:', error);
     return res.status(500).json({ 
       success: false, 
-      message: 'Internal server error: ' + error.message
+      message: 'Internal server error' 
     });
   }
 });
@@ -182,4 +183,5 @@ app.get('/api/push-subscriptions/count', (req, res) => {
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+  console.log(`VAPID public key: ${pushNotifications.vapidPublicKey}`);
 }); 

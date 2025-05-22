@@ -4,17 +4,17 @@
  */
 
 const webpush = require('web-push');
+require('dotenv').config();
 
-// VAPID keys should be generated only once and stored securely
-// Generate using: npx web-push generate-vapid-keys
+// VAPID keys from environment variables
 const vapidKeys = {
-  publicKey: 'BMqyrecWOLqb2v-2s2wtuGLIpIdBv4UShX5e1RLQ67H4RL40hCbkojaCNqXkeBuv3D2ag6HyTNwF7DJaFqtqhpU',
-  privateKey: 'mulT31fALunp8blgwmE5XJ74Od7_DswHg8j9r9hKNYE'
+  publicKey: process.env.VAPID_PUBLIC_KEY || 'BMqyrecWOLqb2v-2s2wtuGLIpIdBv4UShX5e1RLQ67H4RL40hCbkojaCNqXkeBuv3D2ag6HyTNwF7DJaFqtqhpU',
+  privateKey: process.env.VAPID_PRIVATE_KEY || 'mulT31fALunp8blgwmE5XJ74Od7_DswHg8j9r9hKNYE'
 };
 
 // Configure web-push with VAPID details
 webpush.setVapidDetails(
-  'mailto:your-email@example.com', // Change to your contact email
+  `mailto:${process.env.VAPID_CONTACT_EMAIL || 'your-email@example.com'}`,
   vapidKeys.publicKey,
   vapidKeys.privateKey
 );
@@ -39,6 +39,12 @@ const saveSubscription = (userId, subscription) => {
   if (!subscription.keys || !subscription.keys.p256dh || !subscription.keys.auth) {
     console.error(`[PUSH-DEBUG] Missing keys in subscription for ${userId}`);
     return false;
+  }
+  
+  // Check if it's an iOS subscription
+  const isIOS = subscription.endpoint.includes('safari.push.apple.com');
+  if (isIOS) {
+    console.log(`[PUSH-DEBUG] iOS subscription detected for ${userId}`);
   }
   
   subscriptions.set(userId, subscription);
@@ -81,17 +87,24 @@ const sendNotification = async (userId, payload) => {
     // Prepare proper payload format for iOS compatibility
     let pushPayload = { ...payload }; // Clone to avoid modifying original
     
+    // Check if it's an iOS subscription
+    const isIOS = subscription.endpoint.includes('safari.push.apple.com');
+    
     // For Safari/iOS web push, we need a very specific payload format
-    // Ensure the aps structure is properly formatted - this is critical for iOS
-    if (!pushPayload.aps) {
-      pushPayload.aps = {
-        alert: {
-          title: pushPayload.title || 'StockHub',
-          body: pushPayload.body || ''
-        },
-        badge: pushPayload.badge || 1,
-        'content-available': 1
-      };
+    if (isIOS) {
+      console.log(`[PUSH-DEBUG] Using iOS-specific payload format for ${userId}`);
+      // Ensure the aps structure is properly formatted - this is critical for iOS
+      if (!pushPayload.aps) {
+        pushPayload.aps = {
+          alert: {
+            title: pushPayload.title || 'StockHub',
+            body: pushPayload.body || ''
+          },
+          badge: pushPayload.badge || 1,
+          'content-available': 1,
+          sound: 'default'
+        };
+      }
     }
     
     // Convert to string for webpush
@@ -100,7 +113,13 @@ const sendNotification = async (userId, payload) => {
     
     const result = await webpush.sendNotification(
       subscription,
-      pushPayloadString
+      pushPayloadString,
+      {
+        // Add TTL for iOS
+        TTL: isIOS ? 86400 : undefined, // 24 hours for iOS
+        urgency: 'high',
+        topic: isIOS ? 'stockhub' : undefined // Required for iOS
+      }
     );
     
     console.log(`[PUSH-DEBUG] Notification sent to user ${userId}. Status: ${result.statusCode}`);
