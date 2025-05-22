@@ -63,11 +63,6 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
     });
   }, [friend.friendName]);
   
-  // Refresh status when modal opens
-  useEffect(() => {
-    refreshOnlineStatus();
-  }, [refreshOnlineStatus]);
-
   // Define fetchData as a callback so it can be called from UI
   const fetchData = useCallback(async () => {
     try {
@@ -251,11 +246,30 @@ const FriendPortfolioModal = ({ friend, onClose }) => {
       });
 
       setLoading(false);
+      setRefreshing(false);
     } catch (error) {
       console.error("Error loading friend portfolio data:", error);
       setLoading(false);
+      setRefreshing(false);
     }
   }, [friend.friendName, refreshOnlineStatus]);
+  
+  // Refresh status when modal opens
+  useEffect(() => {
+    refreshOnlineStatus();
+    
+    // Refresh data when modal is opened
+    fetchData();
+    
+    // Set up a refresh interval
+    const refreshInterval = setInterval(() => {
+      fetchData();
+    }, 30000); // Refresh every 30 seconds while modal is open
+    
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [refreshOnlineStatus, fetchData]);
 
   // Helper function to get real-time stock prices
   const getStockPrice = async (ticker) => {

@@ -60,11 +60,8 @@ export function NotificationProvider({ children }) {
     try {
       // Only send notification if user has them enabled
       if (!notificationsEnabled) {
-        console.log("Notifications disabled, not sending trade notification");
         return;
       }
-      
-      console.log(`Preparing to send ${actionType} notification for ${ticker}`);
       
       // Create notification payload
       const notification = {
@@ -83,12 +80,8 @@ export function NotificationProvider({ children }) {
         }
       };
       
-      console.log("Notification payload:", notification);
-      
       // Use the API URL from our constant
       const apiUrl = `${API_URL}/api/broadcast-notification`;
-      
-      console.log(`Sending notification to: ${apiUrl}`);
         
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -106,8 +99,7 @@ export function NotificationProvider({ children }) {
         throw new Error('Failed to send notification to server');
       }
       
-      const result = await response.json();
-      console.log("Notification broadcast response:", result);
+      await response.json();
       
     } catch (error) {
       console.error('Error sending trade notification:', error);

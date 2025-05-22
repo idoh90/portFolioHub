@@ -152,9 +152,6 @@ app.post('/api/broadcast-notification', (req, res) => {
     
     // Send notification asynchronously
     pushNotifications.sendBroadcast(notification)
-      .then(results => {
-        console.log('Broadcast results:', results);
-      })
       .catch(error => {
         console.error('Error in broadcast:', error);
       });
@@ -180,7 +177,6 @@ app.get('/api/vapid-public-key', (req, res) => {
 // Get the number of active subscriptions
 app.get('/api/push-subscriptions/count', (req, res) => {
   const count = pushNotifications.getSubscriptionsCount();
-  console.log(`[DEBUG] Current subscriptions count: ${count}`);
   res.json({ count });
 });
 
@@ -188,7 +184,6 @@ app.get('/api/push-subscriptions/count', (req, res) => {
 if (process.env.NODE_ENV !== 'production') {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
-    console.log(`VAPID public key: ${pushNotifications.vapidPublicKey}`);
   });
 }
 

@@ -66,22 +66,35 @@ const NotificationButton = () => {
       const iosData = detectIOSVersion();
       setIosInfo(iosData);
       setIsStandalone(isInStandaloneMode());
+      
+      // If permission is already granted but not subscribed, automatically subscribe
+      if (Notification.permission === 'granted') {
+        (async () => {
+          const isAlreadySubscribed = await checkSubscriptionStatus();
+          if (!isAlreadySubscribed) {
+            await handleSubscribe();
+          }
+        })();
+      }
     }
   }, []);
 
   // Check if the user is already subscribed to push notifications
   const checkSubscriptionStatus = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      return;
+      return false;
     }
 
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       
-      setIsSubscribed(!!subscription);
+      const isSubscribed = !!subscription;
+      setIsSubscribed(isSubscribed);
+      return isSubscribed;
     } catch (error) {
       console.error('Error checking subscription status:', error);
+      return false;
     }
   };
 

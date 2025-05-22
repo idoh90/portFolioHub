@@ -1031,7 +1031,11 @@ const FriendsPortfolios = ({ friends, currentUser }) => {
     // Check online status for all friends by triggering Firebase reads
     friends.forEach(friendName => {
       const friendStatusRef = ref(db, `userStatus/${friendName}`);
-            get(friendStatusRef).then(snapshot => {        const data = snapshot.val();                // If not in Firebase yet, initialize from localStorage        if (!data) {
+      get(friendStatusRef).then(snapshot => {
+        const data = snapshot.val();
+        
+        // If not in Firebase yet, initialize from localStorage
+        if (!data) {
           const localTimestamp = localStorage.getItem(`lastOnline_${friendName}`);
           if (localTimestamp) {
             // Initialize in Firebase with data from localStorage
