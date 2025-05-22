@@ -192,16 +192,16 @@ export const subscribeToPushNotifications = async () => {
 
     console.log('subscribeToPushNotifications: Waiting for service worker...');
     
+    // Comprehensive service worker status check
+    console.log('subscribeToPushNotifications: Comprehensive service worker check...');
+    console.log('subscribeToPushNotifications: navigator.serviceWorker.controller:', navigator.serviceWorker.controller);
+    
     // Check service worker registration status first
     console.log('subscribeToPushNotifications: Checking service worker registrations...');
     const registrations = await navigator.serviceWorker.getRegistrations();
     console.log('subscribeToPushNotifications: Found registrations:', registrations.length);
     
-    if (registrations.length === 0) {
-      console.error('subscribeToPushNotifications: No service worker registrations found!');
-      throw new Error('No service worker registered');
-    }
-    
+    // Log registration details but don't fail if none found - service worker might still be ready
     registrations.forEach((reg, index) => {
       console.log(`subscribeToPushNotifications: Registration ${index}:`, {
         scope: reg.scope,
@@ -212,12 +212,19 @@ export const subscribeToPushNotifications = async () => {
       });
     });
     
-    // Get the service worker registration with timeout
+    // Check if we have a controlling service worker
+    if (navigator.serviceWorker.controller) {
+      console.log('subscribeToPushNotifications: Controller service worker found:', navigator.serviceWorker.controller.scriptURL);
+    } else {
+      console.warn('subscribeToPushNotifications: No controlling service worker found');
+    }
+    
+    // Get the service worker registration with timeout - this is the authoritative check
     console.log('subscribeToPushNotifications: Waiting for service worker ready (with timeout)...');
     const registration = await Promise.race([
       navigator.serviceWorker.ready,
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Service worker ready timeout')), 10000)
+        setTimeout(() => reject(new Error('Service worker ready timeout after 10 seconds')), 10000)
       )
     ]);
     console.log('subscribeToPushNotifications: Service worker ready:', registration);
