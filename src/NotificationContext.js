@@ -10,7 +10,7 @@ export const NotificationContext = createContext(null);
 // In development, this will be your local server
 const API_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:5000'
-  : 'https://port-folio-server.vercel.app';
+  : 'https://port-folio-57bpr6zcb-idoh90s-projects.vercel.app';
 
 export function NotificationProvider({ children }) {
   const { user } = useContext(AuthContext);

@@ -124,7 +124,7 @@ export const getVapidPublicKey = async () => {
     // Determine API URL based on environment
     const API_URL = window.location.hostname === 'localhost'
       ? 'http://localhost:5000'
-      : 'https://port-folio-server.vercel.app';
+      : 'https://port-folio-57bpr6zcb-idoh90s-projects.vercel.app';
       
     const apiUrl = `${API_URL}/api/vapid-public-key`;
     console.log('getVapidPublicKey: API URL:', apiUrl);
@@ -277,7 +277,7 @@ export const sendSubscriptionToServer = async (subscription) => {
     // Determine API URL based on environment
     const API_URL = window.location.hostname === 'localhost'
       ? 'http://localhost:5000'
-      : 'https://port-folio-server.vercel.app';
+      : 'https://port-folio-57bpr6zcb-idoh90s-projects.vercel.app';
       
     const apiUrl = `${API_URL}/api/push-subscriptions`;
     console.log('sendSubscriptionToServer: API URL:', apiUrl);

@@ -245,7 +245,7 @@ const NotificationButton = () => {
         // Determine API URL based on environment
         const API_URL = window.location.hostname === 'localhost' 
           ? 'http://localhost:5000'
-          : 'https://port-folio-server.vercel.app';
+          : 'https://port-folio-57bpr6zcb-idoh90s-projects.vercel.app';
           
         const apiUrl = `${API_URL}/api/push-subscriptions`;
         
