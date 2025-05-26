@@ -196,7 +196,8 @@ app.post('/api/send-telegram', async (req, res) => {
     }
     
     // Use the provided chat_id or default to environment variable
-    const chatId = chat_id || process.env.REACT_APP_TELEGRAM_CHAT_ID;
+    // Ensure we're using -4682068246 as the default chat ID
+    const chatId = chat_id || -4682068246;
     
     // Create request payload for Telegram API
     const telegramPayload = JSON.stringify({
