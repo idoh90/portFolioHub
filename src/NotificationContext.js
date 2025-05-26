@@ -55,7 +55,7 @@ export function NotificationProvider({ children }) {
     }
   };
 
-  // Send a notification to server for broadcasting
+  // Send a notification to server for broadcasting and to Telegram bot
   const sendTradeNotification = async (actionType, ticker, amount, type = 'stock') => {
     if (!user) return;
     
@@ -102,6 +102,39 @@ export function NotificationProvider({ children }) {
       }
       
       await response.json();
+      
+      // Send notification to Telegram bot
+      try {
+        const telegramUrl = 'https://api.telegram.org/bot7749002252:AAE82IOaGUVDaPJjo-dajHlDaE8mq59pOuw/sendMessage';
+        const action = actionType === 'buy' ? 'bought' : 'sold';
+        const formattedAmount = new Intl.NumberFormat('en-US', { 
+          style: 'currency', 
+          currency: 'USD',
+          maximumFractionDigits: 2
+        }).format(amount);
+        
+        // Create Telegram message payload
+        const telegramPayload = {
+          chat_id: "4682068246",
+          text: `${user} just ${action} ${ticker} for ${formattedAmount}!`
+        };
+        
+        const telegramResponse = await fetch(telegramUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(telegramPayload)
+        });
+        
+        if (!telegramResponse.ok) {
+          const telegramErrorData = await telegramResponse.text();
+          console.error("Failed to send notification to Telegram:", telegramResponse.status, telegramErrorData);
+        }
+      } catch (telegramError) {
+        console.error('Error sending notification to Telegram:', telegramError);
+        // Don't throw here to avoid preventing other functionality if Telegram fails
+      }
       
     } catch (error) {
       console.error('Error sending trade notification:', error);

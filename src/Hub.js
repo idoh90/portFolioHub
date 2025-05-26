@@ -5,7 +5,7 @@ import { PositionsContext } from './PositionsContext';
 import { useQuote } from './api/useQuote';
 import { getQuote } from './api/quote';
 import './Hub.css';
-import FriendPortfolioModal from './FriendPortfolioModal';
+import FriendPortfolioModal from './FriendPortfolioMldodal';
 import ActivityFeed from './ActivityFeed';
 import { OptionsContext } from './OptionsContext';
 import NotificationButton from './components/NotificationButton';
@@ -245,72 +245,73 @@ window.purgeAllMockData = purgeAllMockData;
 function useOnlineStatus(username) {
   useEffect(() => {
     if (!username) return;
-
-    // Create a unique reference for the user's online status
-    const userStatusRef = ref(db, `userStatus/${username}`);
     
-    // Set online status on connection
-    const updateLastOnline = () => {
-      // Store in localStorage to persist across browser sessions
-      localStorage.setItem(`lastOnline_${username}`, new Date().toISOString());
-      
-      // Store in Firebase for universal access using server timestamp
+    const userStatusRef = ref(db, `userStatus/${username}`);
+    const timestamp = new Date().toISOString();
+    
+    // Initialize or update user status in Firebase
+    set(userStatusRef, {
+      lastOnline: timestamp,
+      isOnline: true,
+      lastUpdated: serverTimestamp()
+    }).catch(error => {
+      console.error("Error initializing online status in Firebase:", error);
+      // Fallback to localStorage
+      localStorage.setItem(`lastOnline_${username}`, timestamp);
+    });
+    
+    // Set up periodic status updates
+    const interval = setInterval(() => {
+      const currentTimestamp = new Date().toISOString();
+      set(userStatusRef, {
+        lastOnline: currentTimestamp,
+        isOnline: true,
+        lastUpdated: serverTimestamp()
+      }).catch(error => {
+        console.error("Error updating online status in Firebase:", error);
+        localStorage.setItem(`lastOnline_${username}`, currentTimestamp);
+      });
+    }, 60000); // Update every minute
+    
+    // Handle page focus/blur
+    const handleFocus = () => {
       set(userStatusRef, {
         lastOnline: new Date().toISOString(),
         isOnline: true,
-        lastUpdated: serverTimestamp() // Use Firebase server timestamp
-      }).catch(error => {
-        console.error("Error updating online status in Firebase:", error);
+        lastUpdated: serverTimestamp()
       });
-      
-      // Use sessionStorage to mark active status in current session
-      sessionStorage.setItem('currentlyActive', 'true');
     };
-
-    // Update on mount (when user enters site)
-    updateLastOnline();
-
-    // Set up interval to update timestamp more frequently while user is active
-    const interval = setInterval(updateLastOnline, 15000); // Update every 15 seconds
-
-    // Update on window focus
-    const handleFocus = () => {
-      updateLastOnline();
-    };
-
-    // Update before user leaves
+    
     const handleBeforeUnload = () => {
-      // When leaving, set isOnline to false but keep lastOnline time
-      const timestamp = new Date().toISOString();
+      // Synchronous localStorage update as fallback
+      localStorage.setItem(`lastOnline_${username}`, new Date().toISOString());
+      // Attempt Firebase update
       set(userStatusRef, {
-        lastOnline: timestamp,
+        lastOnline: new Date().toISOString(),
         isOnline: false,
-        lastUpdated: serverTimestamp() // Use Firebase server timestamp
-      }).catch(error => {
-        console.error("Error updating offline status in Firebase:", error);
+        lastUpdated: serverTimestamp()
       });
-      
-      // Also update localStorage
-      localStorage.setItem(`lastOnline_${username}`, timestamp);
     };
-
+    
     window.addEventListener('focus', handleFocus);
     window.addEventListener('beforeunload', handleBeforeUnload);
-
+    
+    // Cleanup
     return () => {
-      // Set the user as offline when the component unmounts
-      const timestamp = new Date().toISOString();
-      set(userStatusRef, {
-        lastOnline: timestamp,
-        isOnline: false,
-        lastUpdated: serverTimestamp() // Use Firebase server timestamp
-      }).catch(error => {
-        console.error("Error updating offline status in Firebase:", error);
-      });
-      
       clearInterval(interval);
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('beforeunload', handleBeforeUnload);
+      
+      const timestamp = new Date().toISOString();
+      // Update offline status
+      set(userStatusRef, {
+        lastOnline: timestamp,
+        isOnline: false,
+        lastUpdated: serverTimestamp()
+      }).catch(error => {
+        console.error("Error updating offline status in Firebase:", error);
+        localStorage.setItem(`lastOnline_${username}`, timestamp);
+      });
     };
   }, [username]);
 }
@@ -406,15 +407,12 @@ export function useNews() {
   const [articles, setArticles] = useState([]);
   
   useEffect(() => {
-    // In a real implementation, this would fetch from an API
-    // For now, we'll create some simple articles based on recent stock activity
     const generateArticles = () => {
-      // Check localStorage for recent activities
       try {
         const allUsers = ['Yanai', 'Ido', 'Ofek', 'Megi'];
         const recentArticles = [];
         
-        // Generate articles based on recent user activity
+        // Generate articles based on real user activity only
         allUsers.forEach(user => {
           // Check for positions
           const posKey = `positions_${user}`;
@@ -423,7 +421,7 @@ export function useNews() {
             try {
               const positions = JSON.parse(posData);
               if (positions && positions.length > 0) {
-                // Take the most recent position (simplified approach)
+                // Take the most recent position
                 const latestPosition = positions[positions.length - 1];
                 if (latestPosition && latestPosition.ticker) {
                   recentArticles.push({
@@ -445,7 +443,6 @@ export function useNews() {
             try {
               const options = JSON.parse(optData);
               if (options && options.length > 0) {
-                // Take the most recent option (simplified approach)
                 const latestOption = options[options.length - 1];
                 if (latestOption && latestOption.ticker) {
                   recentArticles.push({
@@ -461,41 +458,14 @@ export function useNews() {
           }
         });
         
-        // Add some market articles if we don't have enough
-        if (recentArticles.length < 3) {
-          recentArticles.push({
-            headline: 'Markets Rally on Positive Economic Data',
-            source: 'PortfolioHub News',
-            url: '#'
-          });
-          recentArticles.push({
-            headline: 'Tech Stocks Lead Market Gains',
-            source: 'PortfolioHub News',
-            url: '#'
-          });
-        }
-        
         setArticles(recentArticles);
       } catch (error) {
         console.error("Error generating articles:", error);
-        // Fallback to basic articles
-        setArticles([
-          {
-            headline: 'Markets Update: Recent Trends and Analysis',
-            source: 'PortfolioHub News',
-            url: '#'
-          },
-          {
-            headline: 'Top Performing Stocks This Week',
-            source: 'PortfolioHub News',
-            url: '#'
-          }
-        ]);
+        setArticles([]);
       }
     };
     
     generateArticles();
-    // Refresh articles every 5 minutes
     const interval = setInterval(generateArticles, 5 * 60 * 1000);
     
     return () => clearInterval(interval);
@@ -592,25 +562,25 @@ function usePortfolioStats(positions) {
   useEffect(() => {
     let totalValue = 0;
     let totalCost = 0;
-    let yesterdayValue = 0;
     let hasLiveData = true;
 
-    // Calculate stock values
+    // Calculate stock values using real-time quotes
     positions.forEach(pos => {
       const quote = quotes[pos.ticker];
       if (!quote || quote.loading || quote.price === null) {
         hasLiveData = false;
       }
       pos.lots.forEach(lot => {
-        const lotValue = Number(lot.shares) * (quote?.price || Number(lot.price));
-        totalValue += lotValue;
-        totalCost += Number(lot.shares) * Number(lot.price);
-        // For dailyPL, use yesterday's price (1% less for now)
-        yesterdayValue += Number(lot.shares) * (Number(lot.price) * 0.99);
+        const shares = Number(lot.shares);
+        const buyPrice = Number(lot.price);
+        const currentPrice = quote?.price || buyPrice;
+        
+        totalValue += shares * currentPrice;
+        totalCost += shares * buyPrice;
       });
     });
 
-    // Calculate option values
+    // Calculate option values using real-time quotes
     if (options && options.length > 0) {
       options.forEach(opt => {
         const quote = quotes[opt.ticker];
@@ -620,53 +590,37 @@ function usePortfolioStats(positions) {
         
         const contracts = Number(opt.contracts);
         const premium = Number(opt.premium);
-        
-        // For option value approximation (would use proper option pricing in real app)
-        // Here we just use a simple approximation based on underlying price movement
-        const currentPrice = quote?.price || 0;
-        const buyPrice = Number(opt.strike);
+        const strike = Number(opt.strike);
+        const currentPrice = quote?.price || strike;
+        const contractMultiplier = 100;
         
         let optionValue = 0;
-        const contractMultiplier = 100; // Each contract is for 100 shares
         
         if (opt.type === 'CALL') {
           if (opt.direction === 'LONG') {
-            // For long calls: current value approximation
-            optionValue = contracts * Math.max(0, currentPrice - buyPrice) * contractMultiplier;
-            // Add time value approximation (simplified)
-            if (optionValue === 0) optionValue = contracts * premium * contractMultiplier * 0.5;
+            optionValue = contracts * Math.max(0, currentPrice - strike) * contractMultiplier;
           } else {
-            // For short calls: potential liability
-            optionValue = -contracts * Math.max(0, currentPrice - buyPrice) * contractMultiplier;
+            optionValue = -contracts * Math.max(0, currentPrice - strike) * contractMultiplier;
           }
         } else if (opt.type === 'PUT') {
           if (opt.direction === 'LONG') {
-            // For long puts: current value approximation
-            optionValue = contracts * Math.max(0, buyPrice - currentPrice) * contractMultiplier;
-            // Add time value approximation (simplified)
-            if (optionValue === 0) optionValue = contracts * premium * contractMultiplier * 0.5;
+            optionValue = contracts * Math.max(0, strike - currentPrice) * contractMultiplier;
           } else {
-            // For short puts: potential liability
-            optionValue = -contracts * Math.max(0, buyPrice - currentPrice) * contractMultiplier;
+            optionValue = -contracts * Math.max(0, strike - currentPrice) * contractMultiplier;
           }
         }
         
-        // Cost basis
         const optionCost = opt.direction === 'LONG' 
           ? contracts * premium * contractMultiplier 
           : -contracts * premium * contractMultiplier;
         
-        // Yesterday approximation
-        const optionYesterdayValue = optionValue * 0.99;
-        
         totalValue += optionValue;
         totalCost += optionCost;
-        yesterdayValue += optionYesterdayValue;
       });
     }
 
     const totalPL = totalValue - totalCost;
-    const dailyPL = totalCost ? (((totalValue - yesterdayValue) / totalCost) * 100) : 0;
+    const dailyPL = totalCost ? ((totalValue / totalCost - 1) * 100) : 0;
     
     setStats({
       totalValue,
@@ -697,7 +651,6 @@ function useFriendPortfolioStats(friendName) {
       if (!posData) return [];
       
       const parsedPositions = JSON.parse(posData);
-      // Filter out positions with no lots or empty lots arrays
       return parsedPositions.filter(pos => pos.lots && pos.lots.length > 0);
     } catch (error) {
       console.error(`Error loading ${friendName}'s positions:`, error);
@@ -719,7 +672,7 @@ function useFriendPortfolioStats(friendName) {
     }
   }, [friendName]);
 
-  // Get all unique tickers from positions and options
+  // Get all unique tickers
   const tickers = useMemo(() => {
     const stockTickers = positions.map(pos => pos.ticker);
     const optionTickers = options.map(opt => opt.ticker);
@@ -731,10 +684,10 @@ function useFriendPortfolioStats(friendName) {
   useEffect(() => {
     let totalValue = 0;
     let totalCost = 0;
-    let yesterdayValue = 0;
     let biggestStock = null;
     let biggestStockValue = 0;
     let hasLiveData = true;
+    let positionValues = new Map();
 
     // Calculate stock values
     positions.forEach(pos => {
@@ -742,6 +695,7 @@ function useFriendPortfolioStats(friendName) {
       if (!quote || quote.loading || quote.price === null) {
         hasLiveData = false;
       }
+      
       let posValue = 0;
       pos.lots.forEach(lot => {
         const shares = Number(lot.shares);
@@ -750,14 +704,13 @@ function useFriendPortfolioStats(friendName) {
         
         const lotValue = shares * currentPrice;
         const lotCost = shares * buyPrice;
-        // For yesterday's price, use 99% of current price as approximation
-        const lotYesterdayValue = shares * (currentPrice * 0.99);
         
+        posValue += lotValue;
         totalValue += lotValue;
         totalCost += lotCost;
-        yesterdayValue += lotYesterdayValue;
-        posValue += lotValue;
       });
+      
+      positionValues.set(pos.ticker, posValue);
       if (posValue > biggestStockValue) {
         biggestStockValue = posValue;
         biggestStock = pos.ticker;
@@ -766,10 +719,7 @@ function useFriendPortfolioStats(friendName) {
 
     // Calculate option values
     if (options.length > 0) {
-      let optionsBlock = {
-        totalValue: 0,
-        ticker: 'OPTIONS'
-      };
+      let totalOptionsValue = 0;
       
       options.forEach(opt => {
         const quote = quotes[opt.ticker];
@@ -777,46 +727,47 @@ function useFriendPortfolioStats(friendName) {
           hasLiveData = false;
         }
         
-        try {
-          const contracts = Number(opt.contracts || 0);
-          const premium = Number(opt.premium || 0);
-          const strike = Number(opt.strike || 0);
-          
-          // Basic option value calculation (simplified)
-          // A real implementation would use proper options pricing formulas
-          const contractMultiplier = 100; // Each contract is for 100 shares
-          const optionValue = contracts * premium * contractMultiplier;
-          const optionCost = contracts * premium * contractMultiplier;
-          const optionYesterdayValue = optionValue * 0.99; // Simple approximation
-          
-          totalValue += optionValue;
-          totalCost += optionCost;
-          yesterdayValue += optionYesterdayValue;
-          
-          optionsBlock.totalValue += optionValue;
-          
-          // Track individual large options
-          const optType = `${opt.ticker} ${opt.type}`;
-          if (optionValue > biggestStockValue) {
-            biggestStockValue = optionValue;
-            biggestStock = optType;
+        const contracts = Number(opt.contracts);
+        const premium = Number(opt.premium);
+        const strike = Number(opt.strike);
+        const currentPrice = quote?.price || strike;
+        const contractMultiplier = 100;
+        
+        let optionValue = 0;
+        
+        if (opt.type === 'CALL') {
+          if (opt.direction === 'LONG') {
+            optionValue = contracts * Math.max(0, currentPrice - strike) * contractMultiplier;
+          } else {
+            optionValue = -contracts * Math.max(0, currentPrice - strike) * contractMultiplier;
           }
-        } catch (e) {
-          console.error(`Error calculating value for option:`, opt, e);
+        } else if (opt.type === 'PUT') {
+          if (opt.direction === 'LONG') {
+            optionValue = contracts * Math.max(0, strike - currentPrice) * contractMultiplier;
+          } else {
+            optionValue = -contracts * Math.max(0, strike - currentPrice) * contractMultiplier;
+          }
         }
+        
+        const optionCost = opt.direction === 'LONG' 
+          ? contracts * premium * contractMultiplier 
+          : -contracts * premium * contractMultiplier;
+        
+        totalOptionsValue += optionValue;
+        totalValue += optionValue;
+        totalCost += optionCost;
       });
       
-      // If all options together are the biggest position
-      if (optionsBlock.totalValue > biggestStockValue && options.length > 1) {
-        biggestStockValue = optionsBlock.totalValue;
+      // If total options value is the biggest position
+      if (totalOptionsValue > biggestStockValue && options.length > 1) {
+        biggestStockValue = totalOptionsValue;
         biggestStock = 'OPTIONS';
       }
     }
 
     const totalPL = totalValue - totalCost;
     const plPercent = totalCost > 0 ? (totalPL / totalCost) * 100 : 0;
-    // Calculate daily P/L as percentage based on yesterday's value
-    const dailyPL = yesterdayValue > 0 ? ((totalValue - yesterdayValue) / yesterdayValue) * 100 : 0;
+    const dailyPL = totalCost ? ((totalValue / totalCost - 1) * 100) : 0;
     
     setStats({
       totalValue,
