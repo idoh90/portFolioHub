@@ -126,8 +126,8 @@ export function NotificationProvider({ children }) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            chat_id: -4682068246, // Specify the correct chat ID
             message: message
+            // Let the server use the chat ID from environment variables
           })
         });
         
