@@ -5,7 +5,7 @@ import { PositionsContext } from './PositionsContext';
 import { useQuote } from './api/useQuote';
 import { getQuote } from './api/quote';
 import './Hub.css';
-import FriendPortfolioModal from './FriendPortfolioMldodal';
+import FriendPortfolioModal from './FriendPortfolioModal';
 import ActivityFeed from './ActivityFeed';
 import { OptionsContext } from './OptionsContext';
 import NotificationButton from './components/NotificationButton';
