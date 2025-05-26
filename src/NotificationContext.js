@@ -103,9 +103,10 @@ export function NotificationProvider({ children }) {
       
       await response.json();
       
-      // Send notification to Telegram bot
+      // Send notification to Telegram bot through our server
       try {
-        const telegramUrl = 'https://api.telegram.org/bot7749002252:AAE82IOaGUVDaPJjo-dajHlDaE8mq59pOuw/sendMessage';
+        console.log(`Sending Telegram notification for ${user}'s ${actionType} of ${ticker}`);
+        
         const action = actionType === 'buy' ? 'bought' : 'sold';
         const formattedAmount = new Intl.NumberFormat('en-US', { 
           style: 'currency', 
@@ -113,27 +114,33 @@ export function NotificationProvider({ children }) {
           maximumFractionDigits: 2
         }).format(amount);
         
-        // Create Telegram message payload
-        const telegramPayload = {
-          chat_id: "4682068246",
-          text: `${user} just ${action} ${ticker} for ${formattedAmount}!`
-        };
+        // Format the message exactly as specified in requirements
+        const message = `${user} just ${action} ${ticker} for ${formattedAmount}!`;
         
-        const telegramResponse = await fetch(telegramUrl, {
+        console.log("Sending Telegram message:", message);
+        
+        // Use our server-side endpoint to avoid CORS issues
+        const telegramResponse = await fetch(`${API_URL}/api/send-telegram`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(telegramPayload)
+          body: JSON.stringify({
+            // Let the server use the chat_id from environment variables
+            message: message
+          })
         });
         
-        if (!telegramResponse.ok) {
-          const telegramErrorData = await telegramResponse.text();
-          console.error("Failed to send notification to Telegram:", telegramResponse.status, telegramErrorData);
+        if (telegramResponse.ok) {
+          console.log("Telegram notification sent successfully!");
+          const responseData = await telegramResponse.json();
+          console.log("Server response for Telegram notification:", responseData);
+        } else {
+          const errorText = await telegramResponse.text();
+          console.error("Failed to send Telegram notification:", telegramResponse.status, errorText);
         }
       } catch (telegramError) {
-        console.error('Error sending notification to Telegram:', telegramError);
-        // Don't throw here to avoid preventing other functionality if Telegram fails
+        console.error('Error sending Telegram notification:', telegramError);
       }
       
     } catch (error) {
